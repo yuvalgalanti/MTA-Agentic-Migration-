@@ -1,0 +1,8 @@
+export const confirmDeletion = "#confirm-deletion-input";
+export const importQuestionnaire = "#import-questionnaire";
+export const switchToggle = ".pf-v6-c-switch__toggle";
+export const downloadYamlTemplate = "#download-yaml-template";
+export const ArchivedQuestionnaires = "Archived questionnaires";
+export const ArchivedQuestionnairesTableDataCell =
+  'td[data-label="Archived questionnaires"]';
+export const QuestionnaireBreadcrumb = ".pf-v6-c-breadcrumb__item";
