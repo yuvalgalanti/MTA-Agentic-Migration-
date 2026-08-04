@@ -1,0 +1,37 @@
+coverage:
+  status:
+    patch:
+      default:
+        informational: true
+        target: auto
+
+    project:
+      default: false
+
+      client:
+        informational: true
+        target: auto
+        flags:
+          - client
+
+      server:
+        informational: true
+        target: auto
+        flags:
+          - server
+
+flags:
+  client:
+    paths:
+      - client/
+  server:
+    paths:
+      - server/
+
+ignore:
+  - "**/mockServiceWorker.js"
+
+# turn off github annotations, too many annotations are not useful
+# see: https://docs.codecov.com/docs/github-checks
+github_checks:
+  annotations: false

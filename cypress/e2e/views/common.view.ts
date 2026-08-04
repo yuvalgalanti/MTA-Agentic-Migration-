@@ -1,0 +1,103 @@
+/*
+Copyright © 2021 the Konveyor Contributors (https://konveyor.io/)
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+export const itemsPerPageToggleButton = "#pagination-id-top-toggle";
+export const submitButton = "#submit";
+export const cancelButton = "#cancel";
+export const closeButton = "button[aria-label=Close]";
+export const confirmButton = "#confirm-dialog-button";
+export const confirmCancelButton = "#confirm-cancel-button";
+export const removeButton = "button[aria-label='Remove']";
+export const controlsForm = "form.pf-v6-c-form";
+export const filteredBy = '[data-ouia-component-id="filtered-by"]';
+export const expandRow = "button[aria-label=Details]";
+export const successAlertMessage = ".pf-m-success";
+export const successIcon = "span.pf-v6-c-icon__content.pf-m-success";
+export const errorAlertMessage = ".pf-m-error";
+export const infoAlertMessage = ".pf-m-info";
+export const alertBody = 'div[id*="pf-modal-part"]';
+export const alertTitle = "h4[class*='alert__title']";
+export const appTable = ".pf-v6-c-table";
+export const expandableRow = ".pf-c-expandable-row";
+export const helper = "span.pf-v6-c-helper-text__item-text";
+export const inputText = "input[type='text']";
+export const nextPageButton = "button[aria-label='Go to next page']";
+export const prevPageButton = "button[aria-label='Go to previous page']";
+export const lastPageButton = "button[aria-label='Go to last page']";
+export const firstPageButton = "button[aria-label='Go to first page']";
+export const pageNumInput = "input[aria-label='Current page']";
+export const optionMenu = "div.perspective";
+export const modal = "[id^=pf-modal-part-]";
+export const navLink = ".pf-v6-c-nav__link";
+export const closeSuccessNotification =
+  "button[aria-label^='Close Success alert:']";
+export const divHeader = "[id^=pf-random-id-]";
+export const itemsSelectInsideDialog =
+  "div[role='dialog'] button[class='pf-v6-c-menu-toggle__button']";
+export const helperBusiness = 'span[class*="helper-text__item"]';
+export const stakeHolderGroupHelper = "div.pf-v6-c-helper-text";
+export const actionMenuItem = "span.pf-v6-c-menu__item-text";
+export const manageImportsActionsButton =
+  "button[aria-label='Table toolbar actions kebab toggle']";
+export const kebabActionButton = "li.pf-v6-c-menu__list-item";
+export const commonTable = "table.pf-v6-c-table.pf-m-grid-md";
+export const tableRowActions = ".pf-v6-c-table__tr.actions-row";
+export const tableHead = "thead[class='pf-v6-c-table__thead']";
+export const plainButton = "button.pf-v6-c-button.pf-m-plain";
+export const radioButtonLabel = "div.pf-v6-c-radio";
+export const nextButton = "button[cy-data='next']";
+export const saveAndReviewButton = "button[cy-data='save-and-review']";
+export const span = "span";
+export const div = "div";
+export const liTag = "li";
+export const aboutButton = "#about-button";
+export const issues = "Issues";
+export const dependencies = "Dependencies";
+export const technologies = "Technologies";
+
+export const radioButton = '*[class^="pf-v6-c-radio__input"]';
+export const splitItem = "div.pf-v6-l-split__item";
+export const taskNotificationBadge = "#task-notification-badge";
+export const modalConfirm = "#modal-confirm";
+// target both OverflowActionMenu and ActionsColumn
+export const kebabToggleButton =
+  "[data-ouia-component-id='row-actions'], button[aria-label='Kebab toggle']";
+// Application/Archetype side drawer
+export enum sideDrawer {
+  risk = "h4.pf-v6-c-title.pf-m-md",
+  labelContent = "span.pf-v6-c-label__content",
+  closeDrawer = "button[aria-label='Close drawer panel']",
+  pageDrawerContent = "#page-drawer-content",
+  listText = "span.pf-v6-c-description-list__text",
+  labelText = "span.pf-v6-c-label__text",
+}
+export const closeAbout = "button[aria-label='Close Dialog']";
+export const pencilAction = '[data-ouia-component-id="pencil-action"]';
+export const trashAction = '[data-ouia-component-id="trash-action"]';
+// Task details page
+export const taskDetailsEditor = "div[class='pf-v6-c-code-editor__code']";
+export const downloadFormatDetails = {
+  yaml: {
+    key: "yaml",
+    button: "button[id='code-language-select-yaml']",
+  },
+  json: {
+    key: "json",
+    button: "button[id='code-language-select-json']",
+  },
+};
+export const downloadTaskButton = "button[aria-label='Download code']";
+
+// Task Manager drawer

@@ -1,0 +1,203 @@
+/*
+Copyright © 2021 the Konveyor Contributors (https://konveyor.io/)
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+/// <reference types="cypress" />
+
+import * as data from "../../../../utils/data_utils";
+import {
+  applySearchFilter,
+  applySelectFilter,
+  callWithin,
+  clickByText,
+  getAuthHeaders,
+  login,
+} from "../../../../utils/utils";
+import { Application } from "../../../models/migration/applicationinventory/application";
+import { BusinessServices } from "../../../models/migration/controls/businessservices";
+import { Stakeholders } from "../../../models/migration/controls/stakeholders";
+import { Tag } from "../../../models/migration/controls/tags";
+import { MigrationWave } from "../../../models/migration/migration-waves/migration-wave";
+import {
+  button,
+  clearAllFilters,
+  manageApplications,
+} from "../../../types/constants";
+import {
+  categoryBusinessService,
+  categoryName,
+  categoryOwner,
+} from "../../../types/filter-categories";
+import { modal } from "../../../views/common.view";
+
+const now = new Date();
+now.setDate(now.getDate() + 1);
+const end = new Date(now.getTime());
+
+end.setFullYear(end.getFullYear() + 1);
+let applicationsList: Application[] = [];
+let businessServicesList: BusinessServices[] = [];
+let tagList: Tag[] = [];
+let stakeholders: Stakeholders[] = [];
+
+//Automates Polarion MTA-354
+describe(
+  ["@tier3", "@tier3_E"],
+  "Migration waves: Filter validations on Manage applications modal",
+  function () {
+    before("Login and Create Test Data", function () {
+      login();
+
+      getAuthHeaders().then((headers) => {
+        BusinessServices.createMultipleViaApi(2, headers).then((bsList) => {
+          businessServicesList = bsList;
+
+          Tag.createMultipleViaApi(2, headers).then((tList) => {
+            tagList = tList;
+
+            Stakeholders.createMultipleViaApi(2, headers).then((sList) => {
+              stakeholders = sList;
+
+              Application.createMultipleViaApi(
+                2,
+                businessServicesList,
+                tagList,
+                stakeholders,
+                headers
+              ).then((appList) => {
+                applicationsList = appList;
+              });
+            });
+          });
+        });
+      });
+    });
+
+    beforeEach("Login", function () {
+      cy.intercept("GET", "/hub/migrationwaves*").as("getWave");
+      cy.intercept("POST", "/hub/migrationwaves*").as("postWave");
+    });
+
+    it("Filter applications by name", function () {
+      const migrationWave = new MigrationWave(
+        data.getRandomWord(8),
+        now,
+        end,
+        null,
+        null,
+        applicationsList
+      );
+      migrationWave.create();
+      cy.wait("@postWave");
+      cy.wait("@getWave");
+      MigrationWave.open(true);
+      migrationWave.expandActionsMenu();
+      cy.contains(manageApplications).click();
+      callWithin(modal, () => {
+        // Enter an existing exact name and apply it as search filter
+        applySearchFilter(categoryName, applicationsList[1].name);
+        cy.get("td").should("contain", applicationsList[1].name);
+        cy.get("td").should("not.contain", applicationsList[0].name);
+        clickByText(button, clearAllFilters);
+
+        // Enter a non-existing app name and apply it as search filter
+        applySearchFilter(categoryName, String(data.getRandomNumber()));
+        cy.get("td").should("not.contain", applicationsList[1].name);
+        cy.get("td").should("not.contain", applicationsList[0].name);
+        clickByText(button, clearAllFilters);
+        clickByText(button, "Cancel");
+      });
+      migrationWave.delete();
+    });
+
+    it("Filter applications by business service", function () {
+      const migrationWave = new MigrationWave(
+        data.getRandomWord(8),
+        now,
+        end,
+        null,
+        null,
+        applicationsList
+      );
+      migrationWave.create();
+      cy.wait("@postWave");
+      cy.wait("@getWave");
+      MigrationWave.open(true);
+      migrationWave.expandActionsMenu();
+      cy.contains(manageApplications).click();
+      callWithin(modal, () => {
+        // Apply BS associated with applicationsList[1].name as select filter
+        applySelectFilter(
+          categoryBusinessService,
+          applicationsList[1].business
+        );
+        cy.get("td").should("contain", applicationsList[1].name);
+        cy.get("td").should("not.contain", applicationsList[0].name);
+        clickByText(button, clearAllFilters);
+
+        // Apply BS associated with applicationsList[0].name as select filter
+        applySelectFilter(
+          categoryBusinessService,
+          applicationsList[0].business
+        );
+        cy.get("td").should("not.contain", applicationsList[1].name);
+        cy.get("td").should("contain", applicationsList[0].name);
+        clickByText(button, clearAllFilters);
+        clickByText(button, "Cancel");
+      });
+      migrationWave.delete();
+    });
+
+    it("Filter applications by owner", function () {
+      const migrationWave = new MigrationWave(
+        data.getRandomWord(8),
+        now,
+        end,
+        null,
+        null,
+        applicationsList
+      );
+      migrationWave.create();
+      cy.wait("@postWave");
+      cy.wait("@getWave");
+      MigrationWave.open(true);
+      migrationWave.expandActionsMenu();
+      cy.contains(manageApplications).click();
+      callWithin(modal, () => {
+        // Apply owner associated with applicationsList[1].name as select filter
+        applySelectFilter(categoryOwner, stakeholders[1].name);
+        cy.get("td").should("contain", applicationsList[1].name);
+        cy.get("td").should("not.contain", applicationsList[0].name);
+        clickByText(button, clearAllFilters);
+
+        // Apply owner associated with applicationsList[0].name as select filter
+        applySelectFilter(categoryOwner, stakeholders[0].name);
+        cy.get("td").should("not.contain", applicationsList[1].name);
+        cy.get("td").should("contain", applicationsList[0].name);
+        clickByText(button, clearAllFilters);
+        clickByText(button, "Cancel");
+      });
+      migrationWave.delete();
+    });
+
+    after("Perform test data clean up", function () {
+      getAuthHeaders().then((headers) => {
+        Application.deleteAllViaApi(headers);
+        MigrationWave.deleteAllViaApi(headers);
+        BusinessServices.deleteAllViaApi(headers);
+        Stakeholders.deleteAllViaApi(headers);
+        tagList.forEach((tag) => {
+          tag.deleteViaApi(headers);
+        });
+      });
+    });
+  }
+);

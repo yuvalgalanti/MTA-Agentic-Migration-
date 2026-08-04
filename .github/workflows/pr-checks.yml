@@ -1,0 +1,20 @@
+name: PR Checks
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    name: Verify PR contents
+    steps:
+      - name: Check Title
+        id: verifier
+        uses: konveyor/release-tools/cmd/verify-pr@main
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}

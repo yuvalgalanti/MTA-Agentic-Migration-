@@ -1,0 +1,66 @@
+/*
+Copyright © 2021 the Konveyor Contributors (https://konveyor.io/)
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+/// <reference types="cypress" />
+
+import * as data from "../../../../../../utils/data_utils";
+import {
+  applySearchFilter,
+  clickByText,
+  exists,
+} from "../../../../../../utils/utils";
+import { TagCategory } from "../../../../../models/migration/controls/tagcategory";
+import { button, clearAllFilters, tdTag } from "../../../../../types/constants";
+import { categoryColor } from "../../../../../types/filter-categories";
+import { appTable } from "../../../../../views/common.view";
+
+describe(
+  ["@tier3", "@tier3_C"],
+  "Tag tagCategory filter validations",
+  function () {
+    beforeEach("Login", function () {
+      cy.intercept("GET", "/hub/tag-category*").as("getTagCategories");
+    });
+
+    it("Tag category color filter validations", function () {
+      TagCategory.openList();
+
+      // Find an existing tag category color substring and apply it as search filter
+      let validSearchInput = "none";
+      cy.get(appTable)
+        .should(($table) => {
+          validSearchInput = data.getColor();
+          const cell = $table.find(`${tdTag}:contains(${validSearchInput})`);
+          expect(
+            cell.length,
+            `Color ${validSearchInput} to exist`
+          ).to.be.greaterThan(0);
+        })
+        .then(() => {
+          applySearchFilter(categoryColor, validSearchInput);
+          exists(validSearchInput);
+        });
+
+      clickByText(button, clearAllFilters);
+      cy.get("@getTagCategories");
+
+      // Enter a non-existing tag type color substring and apply it as search filter
+      const invalidSearchInput = String(data.getRandomWord(3));
+      applySearchFilter(categoryColor, invalidSearchInput);
+      cy.get("h2").contains("No tags available");
+      clickByText(button, clearAllFilters);
+    });
+  }
+);
