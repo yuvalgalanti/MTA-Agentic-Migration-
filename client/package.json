@@ -40,7 +40,7 @@
     "git-url-parse": "^16.1.0",
     "i18next": "^26.3.1",
     "i18next-http-backend": "^4.0.0",
-    "immer": "^10.2.0",
+    "immer": "^11.1.18",
     "js-yaml": "^4.3.0",
     "jwt-decode": "^4.0.0",
     "lodash-es": "^4.17.21",
