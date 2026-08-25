@@ -24,7 +24,7 @@
     "@dotenvx/dotenvx": "^1.51.1",
     "@testing-library/cypress": "^10.1.0",
     "cy-verify-downloads": "^0.3.0",
-    "cypress": "^15.7.0",
+    "cypress": "^15.21.0",
     "cypress-downloadfile": "^1.2.4",
     "cypress-fail-fast": "^7.1.1",
     "cypress-file-upload": "^5.0.8",
