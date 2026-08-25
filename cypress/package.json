@@ -20,7 +20,7 @@
     "mergereports": "npx jrm ./run/report/junitreport.xml ./run/report/junit/*.xml"
   },
   "devDependencies": {
-    "@bahmutov/cypress-esbuild-preprocessor": "^2.2.6",
+    "@bahmutov/cypress-esbuild-preprocessor": "^2.2.8",
     "@dotenvx/dotenvx": "^1.51.1",
     "@testing-library/cypress": "^10.1.0",
     "cy-verify-downloads": "^0.3.0",
