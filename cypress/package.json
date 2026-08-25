@@ -26,7 +26,7 @@
     "cy-verify-downloads": "^0.3.0",
     "cypress": "^15.7.0",
     "cypress-downloadfile": "^1.2.4",
-    "cypress-fail-fast": "^7.1.1",
+    "cypress-fail-fast": "^8.1.0",
     "cypress-file-upload": "^5.0.8",
     "cypress-fs": "^0.2.8",
     "cypress-log-filter": "^1.0.5",
