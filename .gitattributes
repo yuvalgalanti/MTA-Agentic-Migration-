@@ -1,3 +1,3 @@
-*.jar filter=lfs diff=lfs merge=lfs -text
 *.war filter=lfs diff=lfs merge=lfs -text
 *.ear filter=lfs diff=lfs merge=lfs -text
+*.jar filter=lfs diff=lfs merge=lfs -text
