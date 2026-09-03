@@ -1021,7 +1021,7 @@ export const ApplicationsTable: FC = () => {
                       ref={toggleRef}
                       id="applications-actions-toggle"
                       aria-label="Application actions"
-                      variant="primary"
+                      variant="secondary"
                       onClick={() => setIsActionsOpen((open) => !open)}
                       isExpanded={isActionsOpen}
                     >
