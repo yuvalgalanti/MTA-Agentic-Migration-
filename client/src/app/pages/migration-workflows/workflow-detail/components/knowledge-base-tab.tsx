@@ -91,7 +91,12 @@ export const KnowledgeBaseTab: React.FC<{ workflow: MigrationWorkflow }> = ({
                     <EmptyTextMessage message="None" />
                   )}
                 </Td>
-                <Td>{entry.runId ? `#${entry.runId}` : "—"}</Td>
+                <Td>
+                  {entry.runId
+                    ? runs.find((r) => r.id === entry.runId)?.name ??
+                      `#${entry.runId}`
+                    : "—"}
+                </Td>
                 <Td>{new Date(entry.createdAt).toLocaleDateString()}</Td>
               </Tr>
             ))}

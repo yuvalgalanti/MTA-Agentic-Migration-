@@ -1093,6 +1093,8 @@ export interface MigrationWorkflow {
   autoCreatePR: boolean;
   /** Marks this workflow as a reusable starter template rather than a real, run-able plan. */
   isTemplate?: boolean;
+  /** The user who created this workflow. */
+  owner?: Ref;
   createdAt: string; // ISO 8601 datetime
   /** Denormalized summary of the most recent run, kept in sync as runs progress. */
   lastRun?: {
@@ -1110,6 +1112,16 @@ export type WorkflowRunStatus =
   | "Succeeded"
   | "Failed";
 
+/** Who authored a message in a stage run's chat transcript. */
+export type StageRunMessageAuthor = "agent" | "human";
+
+export interface StageRunMessage {
+  id: number;
+  author: StageRunMessageAuthor;
+  content: string;
+  timestamp: string; // ISO 8601 datetime
+}
+
 export interface WorkflowStageRunResult {
   stageId: number;
   status: WorkflowRunStatus;
@@ -1117,11 +1129,27 @@ export interface WorkflowStageRunResult {
   completedAt?: string; // ISO 8601 datetime
   approvedAt?: string; // ISO 8601 datetime
   output?: string;
+  /** Chat transcript between the agent and a human, used for human-in-the-loop actions. */
+  messages?: StageRunMessage[];
+}
+
+/** A git commit produced during a workflow run, optionally attributed to the stage that made it. */
+export interface WorkflowCommit {
+  id: number;
+  /** Short commit SHA. */
+  sha: string;
+  message: string;
+  stageId?: number;
+  timestamp: string; // ISO 8601 datetime
+  /** Link to the commit in the source repository (GitHub, GitLab, etc). */
+  url?: string;
 }
 
 export interface WorkflowRun {
   id: number;
   workflowId: number;
+  /** Generated, human-friendly run identifier, e.g. "cpq-8f3k1". Used for display instead of `id`. */
+  name: string;
   status: WorkflowRunStatus;
   /** Applications selected for this particular run. */
   applications: Ref[];
@@ -1130,6 +1158,8 @@ export interface WorkflowRun {
   startedAt: string; // ISO 8601 datetime
   completedAt?: string; // ISO 8601 datetime
   stageRuns: WorkflowStageRunResult[];
+  /** Commits made on the target branch during this run, across all stages. */
+  commits: WorkflowCommit[];
 }
 
 export interface KnowledgeBaseEntry {

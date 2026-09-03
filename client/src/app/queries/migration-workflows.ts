@@ -18,6 +18,7 @@ import {
   getMigrationWorkflowById,
   getMigrationWorkflows,
   getWorkflowRuns,
+  sendStageRunMessage,
   startWorkflowRun,
   updateMigrationWorkflow,
 } from "@app/api/rest";
@@ -210,6 +211,22 @@ export const useApproveStageMutation = (
   const queryClient = useQueryClient();
   const { isPending, mutate, error } = useMutation({
     mutationFn: approveWorkflowStage,
+    onSuccess: (run) => {
+      onSuccess(run);
+      queryClient.invalidateQueries({ queryKey: [WorkflowRunsQueryKey] });
+    },
+    onError: (err: AxiosError) => onError(err),
+  });
+  return { mutate, isPending, error };
+};
+
+export const useSendStageMessageMutation = (
+  onSuccess: (run: WorkflowRun) => void,
+  onError: (err: AxiosError) => void
+) => {
+  const queryClient = useQueryClient();
+  const { isPending, mutate, error } = useMutation({
+    mutationFn: sendStageRunMessage,
     onSuccess: (run) => {
       onSuccess(run);
       queryClient.invalidateQueries({ queryKey: [WorkflowRunsQueryKey] });

@@ -55,7 +55,11 @@ export const DevPaths = {
 
   agenticAgents: "/agentic-migration/agents",
   agenticAgentDetails: "/agentic-migration/agents/:agentId",
+  agenticAgentRunDetails:
+    "/agentic-migration/agents/:agentId/workflows/:workflowId/runs/:runId/stages/:stageId",
   agenticWorkflows: "/agentic-migration/workflows",
+  agenticWorkflowRunDetails:
+    "/agentic-migration/workflows/:workflowId/runs/:runName",
   agenticWorkflowDetails: "/agentic-migration/workflows/:workflowId",
   agenticWorkflowRuns: "/agentic-migration/workflow-runs",
   agenticSkills: "/agentic-migration/skills",
@@ -154,4 +158,16 @@ export interface AgenticWorkflowDetailsRoute {
 
 export interface AgenticAgentDetailsRoute {
   agentId: string;
+}
+
+export interface AgenticAgentRunDetailsRoute {
+  agentId: string;
+  workflowId: string;
+  runId: string;
+  stageId: string;
+}
+
+export interface AgenticWorkflowRunDetailsRoute {
+  workflowId: string;
+  runName: string;
 }

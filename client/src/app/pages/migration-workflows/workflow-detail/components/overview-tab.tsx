@@ -7,6 +7,7 @@ import {
   DescriptionListDescription,
   DescriptionListGroup,
   DescriptionListTerm,
+  Divider,
   Flex,
   FlexItem,
   Label,
@@ -14,41 +15,63 @@ import {
 
 import { Agent, MigrationWorkflow } from "@app/api/models";
 
+import { AGENT_MODELS } from "../../../agents/agent-catalog";
+
+const modelLabel = (modelValue: string) => {
+  const model = AGENT_MODELS.find((m) => m.value === modelValue);
+  return model ? `${model.label} (${model.provider})` : modelValue;
+};
+
 export const OverviewTab: React.FC<{
   workflow: MigrationWorkflow;
   agents: Agent[];
 }> = ({ workflow, agents }) => {
   return (
-    <Flex direction={{ default: "column" }} gap={{ default: "gapLg" }}>
+    <Flex direction={{ default: "column" }} gap={{ default: "gapXl" }}>
       <FlexItem>
-        <DescriptionList isHorizontal>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Goal</DescriptionListTerm>
-            <DescriptionListDescription>{workflow.goal}</DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Save lessons learned</DescriptionListTerm>
-            <DescriptionListDescription>
-              <Label color={workflow.saveLessonsLearned ? "green" : "grey"} isCompact>
-                {workflow.saveLessonsLearned ? "Yes" : "No"}
-              </Label>
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Auto-create PR</DescriptionListTerm>
-            <DescriptionListDescription>
-              <Label color={workflow.autoCreatePR ? "green" : "grey"} isCompact>
-                {workflow.autoCreatePR ? "Yes" : "No"}
-              </Label>
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Created</DescriptionListTerm>
-            <DescriptionListDescription>
-              {new Date(workflow.createdAt).toLocaleString()}
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-        </DescriptionList>
+        <Card>
+          <CardBody>
+            <DescriptionList isHorizontal>
+              <DescriptionListGroup>
+                <DescriptionListTerm>Owner</DescriptionListTerm>
+                <DescriptionListDescription>
+                  {workflow.owner?.name ?? (
+                    <Content component="small">Unassigned</Content>
+                  )}
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+              <DescriptionListGroup>
+                <DescriptionListTerm>Goal</DescriptionListTerm>
+                <DescriptionListDescription>{workflow.goal}</DescriptionListDescription>
+              </DescriptionListGroup>
+              <DescriptionListGroup>
+                <DescriptionListTerm>Save lessons learned</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <Label color={workflow.saveLessonsLearned ? "green" : "grey"} isCompact>
+                    {workflow.saveLessonsLearned ? "Yes" : "No"}
+                  </Label>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+              <DescriptionListGroup>
+                <DescriptionListTerm>Auto-create PR</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <Label color={workflow.autoCreatePR ? "green" : "grey"} isCompact>
+                    {workflow.autoCreatePR ? "Yes" : "No"}
+                  </Label>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+              <DescriptionListGroup>
+                <DescriptionListTerm>Created</DescriptionListTerm>
+                <DescriptionListDescription>
+                  {new Date(workflow.createdAt).toLocaleString()}
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            </DescriptionList>
+          </CardBody>
+        </Card>
+      </FlexItem>
+      <FlexItem>
+        <Divider />
       </FlexItem>
       <FlexItem>
         <Content component="h3">Stages</Content>
@@ -79,6 +102,13 @@ export const OverviewTab: React.FC<{
                             {agent ? agent.name : "Unassigned agent"}
                           </Label>
                         </FlexItem>
+                        {agent && (
+                          <FlexItem>
+                            <Label color="purple" isCompact>
+                              {modelLabel(agent.model)}
+                            </Label>
+                          </FlexItem>
+                        )}
                         {stage.requiresApproval && (
                           <FlexItem>
                             <Label color="orange" isCompact>

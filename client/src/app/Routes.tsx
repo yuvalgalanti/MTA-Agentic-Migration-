@@ -96,9 +96,15 @@ const AssetGenerators = lazy(
 
 const Agents = lazy(() => import("./pages/agents"));
 const AgentDetails = lazy(() => import("./pages/agents/agent-detail"));
+const AgentRunDetails = lazy(
+  () => import("./pages/agents/agent-run-details")
+);
 const MigrationWorkflows = lazy(() => import("./pages/migration-workflows"));
 const MigrationWorkflowDetails = lazy(
   () => import("./pages/migration-workflows/workflow-detail")
+);
+const WorkflowRunDetails = lazy(
+  () => import("./pages/migration-workflows/workflow-run-details")
 );
 const WorkflowRunsPage = lazy(
   () => import("./pages/migration-workflows/workflow-runs-page")
@@ -268,6 +274,12 @@ export const migrationRoutes: IRoute<DevPathValues>[] = [
     comp: AnalysisProfiles,
     exact: false,
   },
+  // Agent run details route must come before the agent details route due to route matching order
+  {
+    path: Paths.agenticAgentRunDetails,
+    comp: AgentRunDetails,
+    exact: false,
+  },
   // Agent details route must come before the agents list route due to route matching order
   {
     path: Paths.agenticAgentDetails,
@@ -277,6 +289,12 @@ export const migrationRoutes: IRoute<DevPathValues>[] = [
   {
     path: Paths.agenticAgents,
     comp: Agents,
+    exact: false,
+  },
+  // Workflow run details route must come before the workflow details route due to route matching order
+  {
+    path: Paths.agenticWorkflowRunDetails,
+    comp: WorkflowRunDetails,
     exact: false,
   },
   // Workflow details route must come before the workflows list route due to route matching order

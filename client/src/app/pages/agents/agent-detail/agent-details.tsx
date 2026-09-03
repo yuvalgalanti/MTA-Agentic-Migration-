@@ -25,6 +25,9 @@ import {
   ModalBody,
   ModalHeader,
   PageSection,
+  Tab,
+  TabTitleText,
+  Tabs,
 } from "@patternfly/react-core";
 
 import { AgenticAgentDetailsRoute, Paths } from "@app/Paths";
@@ -44,11 +47,16 @@ import { formatPath, getAxiosErrorMessage } from "@app/utils/utils";
 import { AGENT_IMAGES, AGENT_MODELS } from "../agent-catalog";
 import { AgentForm } from "../components/agent-form";
 
+import { AgentRunsTab } from "./components/agent-runs-tab";
+
+type TabKey = "details" | "runs";
+
 const AgentDetails: React.FC = () => {
   const history = useHistory();
   const { agentId } = useParams<AgenticAgentDetailsRoute>();
   const { pushNotification } = React.useContext(NotificationsContext);
 
+  const [activeTabKey, setActiveTabKey] = React.useState<TabKey>("details");
   const [isActionsOpen, setIsActionsOpen] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
@@ -138,134 +146,177 @@ const AgentDetails: React.FC = () => {
           </PageSection>
 
           <PageSection hasBodyWrapper={false}>
-            <Flex direction={{ default: "column" }} gap={{ default: "gapLg" }}>
-              <FlexItem>
-                <Card>
-                  <CardBody>
-                    <DescriptionList isHorizontal>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>Image</DescriptionListTerm>
-                        <DescriptionListDescription>
-                          <span style={{ fontSize: "1.5rem" }}>
-                            {imageLabel(agent.image)}
-                          </span>
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>Agent prompt</DescriptionListTerm>
-                        <DescriptionListDescription>
-                          {agent.prompt || (
-                            <EmptyTextMessage message="None" />
-                          )}
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>Role</DescriptionListTerm>
-                        <DescriptionListDescription>
-                          <Label color="blue">{agent.role}</Label>
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>Status</DescriptionListTerm>
-                        <DescriptionListDescription>
-                          <Label color={agent.status === "Active" ? "green" : "grey"}>
-                            {agent.status}
-                          </Label>
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>Model</DescriptionListTerm>
-                        <DescriptionListDescription>
-                          {modelLabel(agent.model)}
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>Skills</DescriptionListTerm>
-                        <DescriptionListDescription>
-                          {agent.skills.length > 0 ? (
-                            <LabelGroup>
-                              {agent.skills.map((skill) => (
-                                <Label key={skill} color="purple">
-                                  {skill}
-                                </Label>
-                              ))}
-                            </LabelGroup>
-                          ) : (
-                            <EmptyTextMessage message="None" />
-                          )}
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>MCP tools</DescriptionListTerm>
-                        <DescriptionListDescription>
-                          {agent.mcpTools.length > 0 ? (
-                            <LabelGroup>
-                              {agent.mcpTools.map((tool) => (
-                                <Label key={tool} color="orange" isCompact>
-                                  {tool}
-                                </Label>
-                              ))}
-                            </LabelGroup>
-                          ) : (
-                            <EmptyTextMessage message="None" />
-                          )}
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                      <DescriptionListGroup>
-                        <DescriptionListTerm>Created</DescriptionListTerm>
-                        <DescriptionListDescription>
-                          {new Date(agent.createdAt).toLocaleString()}
-                        </DescriptionListDescription>
-                      </DescriptionListGroup>
-                    </DescriptionList>
-                  </CardBody>
-                </Card>
-              </FlexItem>
-
-              <FlexItem>
-                <Content component="h3">Used in migration workflows</Content>
-                {workflowsUsingAgent.length === 0 ? (
-                  <Content component="small">
-                    <EmptyTextMessage message="This agent isn't assigned to any workflow stage yet." />
-                  </Content>
-                ) : (
-                  <Flex direction={{ default: "column" }} gap={{ default: "gapSm" }}>
-                    {workflowsUsingAgent.map((workflow) => (
-                      <Card key={workflow.id} isCompact>
+            <Tabs
+              activeKey={activeTabKey}
+              onSelect={(_event, tabKey) => setActiveTabKey(tabKey as TabKey)}
+            >
+              <Tab
+                eventKey="details"
+                title={<TabTitleText>Details</TabTitleText>}
+              >
+                <PageSection hasBodyWrapper={false}>
+                  <Flex
+                    direction={{ default: "column" }}
+                    gap={{ default: "gapLg" }}
+                  >
+                    <FlexItem>
+                      <Card>
                         <CardBody>
-                          <Flex
-                            alignItems={{ default: "alignItemsCenter" }}
-                            justifyContent={{
-                              default: "justifyContentSpaceBetween",
-                            }}
-                          >
-                            <FlexItem>
-                              <Link
-                                to={formatPath(Paths.agenticWorkflowDetails, {
-                                  workflowId: workflow.id,
-                                })}
-                              >
-                                {workflow.name}
-                              </Link>
-                            </FlexItem>
-                            <FlexItem>
-                              <Label isCompact>
-                                {
-                                  workflow.stages.filter(
-                                    (stage) => stage.agentId === agent.id
-                                  ).length
-                                }{" "}
-                                stage(s)
-                              </Label>
-                            </FlexItem>
-                          </Flex>
+                          <DescriptionList isHorizontal>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>Image</DescriptionListTerm>
+                              <DescriptionListDescription>
+                                <span style={{ fontSize: "1.5rem" }}>
+                                  {imageLabel(agent.image)}
+                                </span>
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>
+                                Agent prompt
+                              </DescriptionListTerm>
+                              <DescriptionListDescription>
+                                {agent.prompt || (
+                                  <EmptyTextMessage message="None" />
+                                )}
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>Role</DescriptionListTerm>
+                              <DescriptionListDescription>
+                                <Label color="blue">{agent.role}</Label>
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>Status</DescriptionListTerm>
+                              <DescriptionListDescription>
+                                <Label
+                                  color={
+                                    agent.status === "Active"
+                                      ? "green"
+                                      : "grey"
+                                  }
+                                >
+                                  {agent.status}
+                                </Label>
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>Model</DescriptionListTerm>
+                              <DescriptionListDescription>
+                                {modelLabel(agent.model)}
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>Skills</DescriptionListTerm>
+                              <DescriptionListDescription>
+                                {agent.skills.length > 0 ? (
+                                  <LabelGroup>
+                                    {agent.skills.map((skill) => (
+                                      <Label key={skill} color="purple">
+                                        {skill}
+                                      </Label>
+                                    ))}
+                                  </LabelGroup>
+                                ) : (
+                                  <EmptyTextMessage message="None" />
+                                )}
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>
+                                MCP tools
+                              </DescriptionListTerm>
+                              <DescriptionListDescription>
+                                {agent.mcpTools.length > 0 ? (
+                                  <LabelGroup>
+                                    {agent.mcpTools.map((tool) => (
+                                      <Label
+                                        key={tool}
+                                        color="orange"
+                                        isCompact
+                                      >
+                                        {tool}
+                                      </Label>
+                                    ))}
+                                  </LabelGroup>
+                                ) : (
+                                  <EmptyTextMessage message="None" />
+                                )}
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>
+                                Created
+                              </DescriptionListTerm>
+                              <DescriptionListDescription>
+                                {new Date(agent.createdAt).toLocaleString()}
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                          </DescriptionList>
                         </CardBody>
                       </Card>
-                    ))}
+                    </FlexItem>
+
+                    <FlexItem>
+                      <Content component="h3">
+                        Used in migration workflows
+                      </Content>
+                      {workflowsUsingAgent.length === 0 ? (
+                        <Content component="small">
+                          <EmptyTextMessage message="This agent isn't assigned to any workflow stage yet." />
+                        </Content>
+                      ) : (
+                        <Flex
+                          direction={{ default: "column" }}
+                          gap={{ default: "gapSm" }}
+                        >
+                          {workflowsUsingAgent.map((workflow) => (
+                            <Card key={workflow.id} isCompact>
+                              <CardBody>
+                                <Flex
+                                  alignItems={{ default: "alignItemsCenter" }}
+                                  justifyContent={{
+                                    default: "justifyContentSpaceBetween",
+                                  }}
+                                >
+                                  <FlexItem>
+                                    <Link
+                                      to={formatPath(
+                                        Paths.agenticWorkflowDetails,
+                                        { workflowId: workflow.id }
+                                      )}
+                                    >
+                                      {workflow.name}
+                                    </Link>
+                                  </FlexItem>
+                                  <FlexItem>
+                                    <Label isCompact>
+                                      {
+                                        workflow.stages.filter(
+                                          (stage) =>
+                                            stage.agentId === agent.id
+                                        ).length
+                                      }{" "}
+                                      stage(s)
+                                    </Label>
+                                  </FlexItem>
+                                </Flex>
+                              </CardBody>
+                            </Card>
+                          ))}
+                        </Flex>
+                      )}
+                    </FlexItem>
                   </Flex>
-                )}
-              </FlexItem>
-            </Flex>
+                </PageSection>
+              </Tab>
+              <Tab eventKey="runs" title={<TabTitleText>Agent runs</TabTitleText>}>
+                <PageSection hasBodyWrapper={false}>
+                  <AgentRunsTab agent={agent} />
+                </PageSection>
+              </Tab>
+            </Tabs>
           </PageSection>
 
           <Modal

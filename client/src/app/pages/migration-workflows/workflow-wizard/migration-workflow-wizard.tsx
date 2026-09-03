@@ -178,6 +178,7 @@ export const MigrationWorkflowWizard: React.FC<MigrationWorkflowWizardProps> = (
       saveLessonsLearned: values.saveLessonsLearned,
       autoCreatePR: values.autoCreatePR,
       isTemplate: false,
+      owner: workflow?.owner || { id: 1, name: "Demo User" },
       createdAt: workflow?.createdAt || new Date().toISOString(),
       stages: values.stages.map((stage, index) => ({
         id: index + 1,

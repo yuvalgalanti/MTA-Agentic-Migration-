@@ -59,7 +59,7 @@ export const KnowledgeBaseEntryForm: React.FC<KnowledgeBaseEntryFormProps> = ({
     { value: "none", label: "Not linked to a specific run" },
     ...runs.map((run) => ({
       value: String(run.id),
-      label: `Run #${run.id} — ${new Date(run.startedAt).toLocaleString()}`,
+      label: `${run.name} — ${new Date(run.startedAt).toLocaleString()}`,
     })),
   ];
 

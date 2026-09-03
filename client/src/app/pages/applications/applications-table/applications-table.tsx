@@ -8,9 +8,13 @@ import {
   Content,
   Divider,
   DividerVariant,
+  Dropdown,
   DropdownItem,
+  DropdownList,
   FormSelect,
   FormSelectOption,
+  MenuToggle,
+  MenuToggleElement,
   Modal,
   ModalBody,
   ModalFooter,
@@ -34,14 +38,12 @@ import { useHasSomeScopes } from "@app/auth";
 import { AppPlaceholder } from "@app/components/AppPlaceholder";
 import { ApplicationDependenciesForm } from "@app/components/ApplicationDependenciesFormContainer/ApplicationDependenciesForm";
 import { ConditionalRender } from "@app/components/ConditionalRender";
-import { ConditionalTooltip } from "@app/components/ConditionalTooltip";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
 import {
   FilterToolbar,
   FilterType,
 } from "@app/components/FilterToolbar/FilterToolbar";
 import { IconWithLabel } from "@app/components/Icons";
-import { KebabDropdown } from "@app/components/KebabDropdown";
 import { NoDataEmptyState } from "@app/components/NoDataEmptyState";
 import { NotificationsContext } from "@app/components/NotificationsContext";
 import { SimplePagination } from "@app/components/SimplePagination";
@@ -91,6 +93,7 @@ import {
   universalComparator,
 } from "@app/utils/utils";
 
+import { StartWorkflowRunModal } from "../../migration-workflows/components/start-workflow-run-modal";
 import { AnalysisWizard } from "../analysis-wizard/analysis-wizard";
 import { ApplicationDetailDrawer } from "../application-detail-drawer/application-detail-drawer";
 import { ApplicationFormModal } from "../application-form";
@@ -143,6 +146,8 @@ export const ApplicationsTable: FC = () => {
     useState<DecoratedApplication | null>(null);
 
   const [isAnalyzeModalOpen, setAnalyzeModalOpen] = useState(false);
+  const [isRunWorkflowModalOpen, setIsRunWorkflowModalOpen] = useState(false);
+  const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [retrieveConfigApplications, setRetrieveConfigApplications] = useState<
     DecoratedApplication[] | null
   >(null);
@@ -698,11 +703,65 @@ export const ApplicationsTable: FC = () => {
   const tasksWriteAccess = useHasSomeScopes(tasksWriteScopes);
   const reviewsWriteAccess = useHasSomeScopes(reviewsWriteScopes);
 
-  const toolbarKebabItems = filterAndAddSeparator(
+  /**
+   * Analysis on the selected applications should be allowed if:
+   *   - At least 1 application is selected
+   *   - No analysis is in-flight for the selected applications (only 1 analysis at a time)
+   */
+  const isAnalyzingAllowed = () => {
+    if (selectedRows.length === 0) {
+      return false;
+    }
+
+    const currentAnalyzerTasksForSelected = selectedRows
+      .flatMap((app) => app.tasks.currentAnalyzer)
+      .filter(Boolean);
+
+    return (
+      currentAnalyzerTasksForSelected.length === 0 ||
+      currentAnalyzerTasksForSelected.every(({ state }) =>
+        TaskStates.Terminal.includes(state ?? "")
+      )
+    );
+  };
+
+  const selectedRowsHaveExistingAnalysis = selectedRows.some(
+    (app) => !!app.tasks.currentAnalyzer
+  );
+
+  const toolbarActionItems = filterAndAddSeparator(
     (index) => (
       <Divider key={`breakpoint-${index}`} component={DividerVariant.li} />
     ),
     [
+      [
+        tasksWriteAccess && (
+          <DropdownItem
+            key="analyze-application"
+            icon={
+              selectedRowsHaveExistingAnalysis ? (
+                <WarningTriangleIcon />
+              ) : undefined
+            }
+            description={
+              selectedRowsHaveExistingAnalysis
+                ? "An analysis for one or more of the selected applications exists. This will overwrite pre-existing analysis data."
+                : undefined
+            }
+            isDisabled={!isAnalyzingAllowed()}
+            onClick={() => setAnalyzeModalOpen(true)}
+          >
+            {t("actions.analyze")}
+          </DropdownItem>
+        ),
+        <DropdownItem
+          key="run-migration-workflow"
+          isDisabled={selectedRows.length < 1}
+          onClick={() => setIsRunWorkflowModalOpen(true)}
+        >
+          Run migration workflow
+        </DropdownItem>,
+      ],
       [
         importWriteAccess && (
           <DropdownItem
@@ -826,32 +885,6 @@ export const ApplicationsTable: FC = () => {
         ),
       ],
     ]
-  );
-
-  /**
-   * Analysis on the selected applications should be allowed if:
-   *   - At least 1 application is selected
-   *   - No analysis is in-flight for the selected applications (only 1 analysis at a time)
-   */
-  const isAnalyzingAllowed = () => {
-    if (selectedRows.length === 0) {
-      return false;
-    }
-
-    const currentAnalyzerTasksForSelected = selectedRows
-      .flatMap((app) => app.tasks.currentAnalyzer)
-      .filter(Boolean);
-
-    return (
-      currentAnalyzerTasksForSelected.length === 0 ||
-      currentAnalyzerTasksForSelected.every(({ state }) =>
-        TaskStates.Terminal.includes(state ?? "")
-      )
-    );
-  };
-
-  const selectedRowsHaveExistingAnalysis = selectedRows.some(
-    (app) => !!app.tasks.currentAnalyzer
   );
 
   const handleNavToAssessment = (application: DecoratedApplication) => {
@@ -978,47 +1011,29 @@ export const ApplicationsTable: FC = () => {
                 </ScopeGate>
               </ToolbarItem>
               <ToolbarItem>
-                <ScopeGate requiredScopes={tasksWriteScopes}>
-                  <ToolbarItem>
-                    <ConditionalTooltip
-                      isTooltipEnabled={selectedRowsHaveExistingAnalysis}
-                      content={
-                        "An analysis for one or more of the selected applications exists. This operation will overwrite pre-existing analysis data."
-                      }
+                <Dropdown
+                  isOpen={isActionsOpen}
+                  onOpenChange={setIsActionsOpen}
+                  onSelect={() => setIsActionsOpen(false)}
+                  popperProps={{ position: "right" }}
+                  toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+                    <MenuToggle
+                      ref={toggleRef}
+                      id="applications-actions-toggle"
+                      aria-label="Application actions"
+                      variant="primary"
+                      onClick={() => setIsActionsOpen((open) => !open)}
+                      isExpanded={isActionsOpen}
                     >
-                      <Button
-                        icon={
-                          selectedRowsHaveExistingAnalysis ? (
-                            <WarningTriangleIcon />
-                          ) : null
-                        }
-                        type="button"
-                        id="analyze-application"
-                        aria-label="Analyze Application"
-                        variant={ButtonVariant.primary}
-                        onClick={() => {
-                          setAnalyzeModalOpen(true);
-                        }}
-                        isDisabled={!isAnalyzingAllowed()}
-                      >
-                        {t("actions.analyze")}
-                      </Button>
-                    </ConditionalTooltip>
-                  </ToolbarItem>
-                </ScopeGate>
+                      Actions
+                    </MenuToggle>
+                  )}
+                >
+                  <DropdownList>{toolbarActionItems}</DropdownList>
+                </Dropdown>
               </ToolbarItem>
             </ToolbarGroup>
             <ToolbarGroup variant="action-group-plain">
-              {toolbarKebabItems.length ? (
-                <ToolbarItem id="toolbar-kebab">
-                  <KebabDropdown
-                    dropdownItems={toolbarKebabItems}
-                    ariaLabel="Application actions"
-                  />
-                </ToolbarItem>
-              ) : (
-                <></>
-              )}
               <ManageColumnsToolbar
                 columns={columnState.columns}
                 setColumns={columnState.setColumns}
@@ -1341,6 +1356,11 @@ export const ApplicationsTable: FC = () => {
           }}
         />
       )}
+      <StartWorkflowRunModal
+        isOpen={isRunWorkflowModalOpen}
+        onClose={() => setIsRunWorkflowModalOpen(false)}
+        initialApplicationIds={selectedRows.map((app) => app.id)}
+      />
       <RetrieveConfigWizard
         key={
           retrieveConfigApplications

@@ -11,7 +11,12 @@
  */
 import { type RestHandler, rest } from "msw";
 
-import { MigrationWorkflow, WorkflowRun } from "@app/api/models";
+import {
+  MigrationWorkflow,
+  StageRunMessage,
+  WorkflowCommit,
+  WorkflowRun,
+} from "@app/api/models";
 import { hub } from "@app/api/rest";
 
 import * as fx from "./fixtures";
@@ -466,6 +471,129 @@ const analysisReportsHandlers: RestHandler[] = [
 
 const STAGE_RUNNING_MS = 4000;
 
+let messageIdSeq = 10000;
+
+function pushMessage(
+  stageRun: WorkflowRun["stageRuns"][number],
+  author: StageRunMessage["author"],
+  content: string
+) {
+  if (!stageRun.messages) stageRun.messages = [];
+  stageRun.messages.push({
+    id: messageIdSeq++,
+    author,
+    content,
+    timestamp: new Date().toISOString(),
+  });
+}
+
+const RUN_NAME_STOPWORDS = new Set([
+  "to",
+  "and",
+  "the",
+  "of",
+  "for",
+  "a",
+  "an",
+  "on",
+  "in",
+]);
+
+/** Derives a short, workflow-specific code from its name, e.g. "Customer Portal to Quarkus" -> "cpq". */
+function shortCode(workflowName: string): string {
+  const words = workflowName
+    .split(/[^a-zA-Z0-9]+/)
+    .filter((w) => w && !RUN_NAME_STOPWORDS.has(w.toLowerCase()));
+  const initials = words
+    .map((w) => w[0].toLowerCase())
+    .join("")
+    .slice(0, 4);
+  if (initials.length >= 2) return initials;
+  return workflowName.replace(/[^a-zA-Z0-9]/g, "").slice(0, 3).toLowerCase() || "run";
+}
+
+const RUN_SUFFIX_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+function randomSuffix(length = 5): string {
+  let suffix = "";
+  for (let i = 0; i < length; i++) {
+    suffix += RUN_SUFFIX_CHARS[Math.floor(Math.random() * RUN_SUFFIX_CHARS.length)];
+  }
+  return suffix;
+}
+
+/** Generates a Kubernetes/Argo-style run name, e.g. "cpq-8f3k1", unique among existing runs. */
+function generateRunName(workflow: MigrationWorkflow): string {
+  const prefix = shortCode(workflow.name);
+  let name = `${prefix}-${randomSuffix()}`;
+  while (fx.workflowRuns.some((r) => r.name === name)) {
+    name = `${prefix}-${randomSuffix()}`;
+  }
+  return name;
+}
+
+let commitIdSeq = 20000;
+
+/**
+ * Builds a mock link to the commit in the application's source repository
+ * (GitHub, GitLab, etc), falling back to a made-up GitHub URL when the
+ * application has no repository configured. Purely cosmetic - for demo
+ * purposes only.
+ */
+function commitUrlFor(run: WorkflowRun, sha: string): string {
+  const app = fx.applications.find((a) =>
+    run.applications.some((ra) => ra.id === a.id)
+  );
+  const repoUrl = app?.repository?.url;
+  if (repoUrl) {
+    const base = repoUrl.replace(/\.git$/, "").replace(/\/$/, "");
+    return base.includes("gitlab.com")
+      ? `${base}/-/commit/${sha}`
+      : `${base}/commit/${sha}`;
+  }
+  const slug = (app?.name ?? "migration-repo")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `https://github.com/konveyor-demo/${slug}/commit/${sha}`;
+}
+
+function pushCommit(run: WorkflowRun, stageId: number, message: string) {
+  if (!run.commits) run.commits = [];
+  const sha = randomSuffix(7);
+  const commit: WorkflowCommit = {
+    id: commitIdSeq++,
+    sha,
+    message,
+    stageId,
+    timestamp: new Date().toISOString(),
+    url: commitUrlFor(run, sha),
+  };
+  run.commits.unshift(commit);
+}
+
+/** Produces a plausible canned agent reply to a human chat message, for demo purposes only. */
+function simulateAgentReply(
+  humanMessage: string,
+  stageStatus: WorkflowRun["stageRuns"][number]["status"]
+): string {
+  const lower = humanMessage.toLowerCase();
+  if (
+    lower.includes("approve") ||
+    lower.includes("looks good") ||
+    lower.includes("lgtm")
+  ) {
+    return "Acknowledged — use the Approve button above to confirm, and I'll continue with the next stage.";
+  }
+  if (lower.includes("?")) {
+    return "Good question. Let me know if you'd like me to re-run any part of this stage with more detail in the output.";
+  }
+  if (stageStatus === "Failed") {
+    return "Understood. I've flagged this for a retry once the underlying issue is resolved.";
+  }
+  return "Got it, thanks for the input — I'll factor that in as I continue.";
+}
+
 function tickRun(workflow: MigrationWorkflow, run: WorkflowRun) {
   if (run.status !== "Pending" && run.status !== "Running") {
     return run;
@@ -487,6 +615,7 @@ function tickRun(workflow: MigrationWorkflow, run: WorkflowRun) {
     currentStageRun.status = "Running";
     currentStageRun.startedAt = new Date().toISOString();
     run.status = "Running";
+    pushMessage(currentStageRun, "agent", `Starting "${stage.name}"...`);
     return run;
   }
 
@@ -499,11 +628,22 @@ function tickRun(workflow: MigrationWorkflow, run: WorkflowRun) {
   if (stage.requiresApproval) {
     currentStageRun.status = "AwaitingApproval";
     run.status = "AwaitingApproval";
+    pushMessage(
+      currentStageRun,
+      "agent",
+      `I've finished "${stage.name}". This stage requires your approval before I continue — please review and approve.`
+    );
     return run;
   }
 
   currentStageRun.status = "Succeeded";
   currentStageRun.completedAt = new Date().toISOString();
+  pushMessage(currentStageRun, "agent", `Completed "${stage.name}".`);
+  pushCommit(
+    run,
+    stage.id,
+    `Stage ${workflow.stages.indexOf(stage) + 1} (${stage.name}): ${stage.description ?? "completed successfully"}`
+  );
   advanceToNextStage(workflow, run, currentStageRun.stageId);
   return run;
 }
@@ -587,6 +727,7 @@ const agenticMigrationHandlers: RestHandler[] = [
     const newRun: WorkflowRun = {
       id: nextIdFor(fx.workflowRuns),
       workflowId,
+      name: generateRunName(workflow),
       status: "Pending",
       applications: body.applications ?? [],
       targetBranch: body.targetBranch ?? "main",
@@ -594,7 +735,9 @@ const agenticMigrationHandlers: RestHandler[] = [
       stageRuns: workflow.stages.map((stage) => ({
         stageId: stage.id,
         status: "Pending",
+        messages: [],
       })),
+      commits: [],
     };
     fx.workflowRuns.push(newRun);
     tickRun(workflow, newRun);
@@ -624,8 +767,52 @@ const agenticMigrationHandlers: RestHandler[] = [
       stageRun.status = "Succeeded";
       stageRun.approvedAt = now;
       stageRun.completedAt = now;
+      pushMessage(
+        stageRun,
+        "agent",
+        "Approved by reviewer. Continuing to the next stage."
+      );
+      const stageIndex = workflow.stages.findIndex((s) => s.id === stageId);
+      const stage = workflow.stages[stageIndex];
+      if (stage) {
+        pushCommit(
+          run,
+          stage.id,
+          `Stage ${stageIndex + 1} (${stage.name}): ${stage.description ?? "approved and completed"}`
+        );
+      }
       advanceToNextStage(workflow, run, stageId);
       syncLastRun(workflowId, run);
+      return res(ctx.json(run));
+    }
+  ),
+
+  rest.post(
+    hub`/migration-workflows/:workflowId/runs/:runId/stages/:stageId/messages`,
+    async (req, res, ctx) => {
+      const workflowId = Number(req.params.workflowId);
+      const runId = Number(req.params.runId);
+      const stageId = Number(req.params.stageId);
+
+      const run = fx.workflowRuns.find(
+        (r) => r.id === runId && r.workflowId === workflowId
+      );
+      const stageRun = run?.stageRuns.find((sr) => sr.stageId === stageId);
+      if (!run || !stageRun) {
+        return res(ctx.status(404), ctx.json({ message: "Not found" }));
+      }
+
+      const body = (await req.json()) as { content?: string };
+      const content = (body.content ?? "").trim();
+      if (!content) {
+        return res(
+          ctx.status(400),
+          ctx.json({ message: "Message content is required" })
+        );
+      }
+
+      pushMessage(stageRun, "human", content);
+      pushMessage(stageRun, "agent", simulateAgentReply(content, stageRun.status));
       return res(ctx.json(run));
     }
   ),

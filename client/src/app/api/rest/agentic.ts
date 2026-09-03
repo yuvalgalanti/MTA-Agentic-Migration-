@@ -99,6 +99,24 @@ export const approveWorkflowStage = ({
     )
     .then((response) => response.data);
 
+export const sendStageRunMessage = ({
+  workflowId,
+  runId,
+  stageId,
+  content,
+}: {
+  workflowId: number;
+  runId: number;
+  stageId: number;
+  content: string;
+}) =>
+  axios
+    .post<WorkflowRun>(
+      `${MIGRATION_WORKFLOWS}/${workflowId}/runs/${runId}/stages/${stageId}/messages`,
+      { content }
+    )
+    .then((response) => response.data);
+
 // ----------------------------------------------------------------------------
 // Knowledge base (scoped to a single workflow)
 // ----------------------------------------------------------------------------

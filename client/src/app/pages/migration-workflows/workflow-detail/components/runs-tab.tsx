@@ -1,36 +1,21 @@
 import * as React from "react";
-import { AxiosError } from "axios";
 import { useHistory } from "react-router-dom";
 import {
-  Alert,
   Button,
   ButtonVariant,
-  Content,
   EmptyState,
   EmptyStateBody,
   Flex,
   FlexItem,
-  Label,
-  LabelGroup,
-  Modal,
-  ModalBody,
-  ModalHeader,
-  ProgressStep,
-  ProgressStepper,
 } from "@patternfly/react-core";
 import { CubesIcon } from "@patternfly/react-icons";
 import { Table, Tbody, Td, Th, Thead, Tr } from "@patternfly/react-table";
 
 import { Paths } from "@app/Paths";
-import { MigrationWorkflow, WorkflowRun, WorkflowStageRunResult } from "@app/api/models";
-import { NotificationsContext } from "@app/components/NotificationsContext";
-import {
-  useApproveStageMutation,
-  useFetchWorkflowRuns,
-} from "@app/queries/migration-workflows";
-import { getAxiosErrorMessage } from "@app/utils/utils";
+import { MigrationWorkflow, WorkflowRun } from "@app/api/models";
+import { useFetchWorkflowRuns } from "@app/queries/migration-workflows";
+import { formatPath } from "@app/utils/utils";
 
-import { KnowledgeBaseEntryForm } from "./knowledge-base-entry-form";
 import { RunStatusLabel } from "./run-status-label";
 
 const isNonTerminal = (run: WorkflowRun) =>
@@ -38,47 +23,21 @@ const isNonTerminal = (run: WorkflowRun) =>
   run.status === "Running" ||
   run.status === "AwaitingApproval";
 
-const stepVariant = (
-  status: WorkflowStageRunResult["status"]
-): "default" | "success" | "info" | "pending" | "warning" | "danger" => {
-  switch (status) {
-    case "Succeeded":
-      return "success";
-    case "Failed":
-      return "danger";
-    case "Running":
-      return "info";
-    case "AwaitingApproval":
-      return "warning";
-    default:
-      return "pending";
-  }
-};
-
 export const RunsTab: React.FC<{ workflow: MigrationWorkflow }> = ({
   workflow,
 }) => {
   const history = useHistory();
-  const { pushNotification } = React.useContext(NotificationsContext);
   const { runs, isFetching } = useFetchWorkflowRuns(workflow.id);
-  const [lessonsLearnedRun, setLessonsLearnedRun] = React.useState<WorkflowRun | null>(
-    null
-  );
 
-  const onError = (error: AxiosError) => {
-    pushNotification({ title: getAxiosErrorMessage(error), variant: "danger" });
-  };
-
-  const { mutate: approveStage, isPending: isApproving } = useApproveStageMutation(
-    () => pushNotification({ title: "Stage approved", variant: "success" }),
-    onError
-  );
-
-  const latestRun = runs[0];
   const hasActiveRun = runs.some(isNonTerminal);
-  const awaitingStage = latestRun?.stageRuns.find(
-    (sr) => sr.status === "AwaitingApproval"
-  );
+
+  const goToRunDetails = (run: WorkflowRun) =>
+    history.push(
+      formatPath(Paths.agenticWorkflowRunDetails, {
+        workflowId: workflow.id,
+        runName: run.name,
+      })
+    );
 
   return (
     <Flex direction={{ default: "column" }} gap={{ default: "gapLg" }}>
@@ -107,100 +66,12 @@ export const RunsTab: React.FC<{ workflow: MigrationWorkflow }> = ({
         </FlexItem>
       )}
 
-      {latestRun && (
-        <FlexItem>
-          <Flex alignItems={{ default: "alignItemsCenter" }} gap={{ default: "gapMd" }}>
-            <FlexItem>
-              <Content component="h3">
-                Latest run — #{latestRun.id}
-              </Content>
-            </FlexItem>
-            <FlexItem>
-              <RunStatusLabel status={latestRun.status} isCompact={false} />
-            </FlexItem>
-          </Flex>
-
-          {latestRun.applications.length > 0 && (
-            <Content component="small" style={{ marginBottom: "var(--pf-t--global--spacer--sm)" }}>
-              Applications:{" "}
-              <LabelGroup>
-                {latestRun.applications.map((app) => (
-                  <Label key={app.id} isCompact>{app.name}</Label>
-                ))}
-              </LabelGroup>
-              {" | Branch: "}
-              <Label isCompact color="blue">{latestRun.targetBranch}</Label>
-            </Content>
-          )}
-
-          <ProgressStepper aria-label="Workflow run progress">
-            {workflow.stages.map((stage) => {
-              const stageRun = latestRun.stageRuns.find(
-                (sr) => sr.stageId === stage.id
-              );
-              const status = stageRun?.status ?? "Pending";
-              return (
-                <ProgressStep
-                  key={stage.id}
-                  id={`run-${latestRun.id}-stage-${stage.id}`}
-                  variant={stepVariant(status)}
-                  isCurrent={status === "Running" || status === "AwaitingApproval"}
-                  description={stageRun?.output}
-                  aria-label={`${stage.name}: ${status}`}
-                >
-                  {stage.name}
-                </ProgressStep>
-              );
-            })}
-          </ProgressStepper>
-
-          {awaitingStage && (
-            <Alert
-              variant="warning"
-              isInline
-              title="A stage is awaiting your approval"
-              style={{ marginTop: "var(--pf-t--global--spacer--md)" }}
-            >
-              <p>
-                {workflow.stages.find((s) => s.id === awaitingStage.stageId)?.name}{" "}
-                has completed its work and requires human approval before the
-                workflow continues.
-              </p>
-              <Button
-                variant={ButtonVariant.primary}
-                isLoading={isApproving}
-                onClick={() =>
-                  approveStage({
-                    workflowId: workflow.id,
-                    runId: latestRun.id,
-                    stageId: awaitingStage.stageId,
-                  })
-                }
-              >
-                Approve and continue
-              </Button>
-            </Alert>
-          )}
-
-          {(latestRun.status === "Succeeded" || latestRun.status === "Failed") && (
-            <Button
-              variant={ButtonVariant.secondary}
-              style={{ marginTop: "var(--pf-t--global--spacer--md)" }}
-              onClick={() => setLessonsLearnedRun(latestRun)}
-            >
-              Save lessons learned
-            </Button>
-          )}
-        </FlexItem>
-      )}
-
       {runs.length > 0 && (
         <FlexItem>
-          <Content component="h3">Run history</Content>
           <Table aria-label="Run history table" variant="compact">
             <Thead>
               <Tr>
-                <Th>Run</Th>
+                <Th>Name</Th>
                 <Th>Status</Th>
                 <Th>Applications</Th>
                 <Th>Target branch</Th>
@@ -210,19 +81,32 @@ export const RunsTab: React.FC<{ workflow: MigrationWorkflow }> = ({
             </Thead>
             <Tbody>
               {runs.map((run) => (
-                <Tr key={run.id}>
-                  <Td>#{run.id}</Td>
-                  <Td>
+                <Tr key={run.id} isClickable onRowClick={() => goToRunDetails(run)}>
+                  <Td dataLabel="Name">
+                    <Button
+                      variant="link"
+                      isInline
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        goToRunDetails(run);
+                      }}
+                    >
+                      {run.name}
+                    </Button>
+                  </Td>
+                  <Td dataLabel="Status">
                     <RunStatusLabel status={run.status} />
                   </Td>
-                  <Td>
+                  <Td dataLabel="Applications">
                     {run.applications.length > 0
                       ? run.applications.map((a) => a.name).join(", ")
                       : "—"}
                   </Td>
-                  <Td>{run.targetBranch || "—"}</Td>
-                  <Td>{new Date(run.startedAt).toLocaleString()}</Td>
-                  <Td>
+                  <Td dataLabel="Target branch">{run.targetBranch || "—"}</Td>
+                  <Td dataLabel="Started">
+                    {new Date(run.startedAt).toLocaleString()}
+                  </Td>
+                  <Td dataLabel="Completed">
                     {run.completedAt
                       ? new Date(run.completedAt).toLocaleString()
                       : "—"}
@@ -233,24 +117,6 @@ export const RunsTab: React.FC<{ workflow: MigrationWorkflow }> = ({
           </Table>
         </FlexItem>
       )}
-
-      <Modal
-        isOpen={!!lessonsLearnedRun}
-        onClose={() => setLessonsLearnedRun(null)}
-        variant="medium"
-      >
-        <ModalHeader title="Save lessons learned" />
-        <ModalBody>
-          {lessonsLearnedRun && (
-            <KnowledgeBaseEntryForm
-              workflowId={workflow.id}
-              runs={runs}
-              defaultRunId={lessonsLearnedRun.id}
-              onClose={() => setLessonsLearnedRun(null)}
-            />
-          )}
-        </ModalBody>
-      </Modal>
     </Flex>
   );
 };

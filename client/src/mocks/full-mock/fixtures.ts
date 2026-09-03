@@ -306,6 +306,11 @@ export const applications: Application[] = [
       { id: 5, name: "Spring Boot" },
       { id: 8, name: "PostgreSQL" },
     ],
+    repository: {
+      kind: "git",
+      url: "https://github.com/konveyor-demo/customer-portal",
+      branch: "main",
+    },
     owner: { id: 1, name: "Alice Nguyen" },
     contributors: [{ id: 5, name: "Elena Petrova" }],
     migrationWave: { id: 1, name: "Wave 1 - Pilot" },
@@ -400,6 +405,11 @@ export const applications: Application[] = [
     description: "COBOL billing system for enterprise accounts",
     businessService: { id: 1, name: "Retail Banking" },
     tags: [{ id: 12, name: "Windows" }],
+    repository: {
+      kind: "git",
+      url: "https://gitlab.com/konveyor-demo/legacy-mainframe-billing",
+      branch: "main",
+    },
     owner: { id: 6, name: "Farid Haidari" },
     contributors: [],
     migrationWave: null,
@@ -1422,6 +1432,7 @@ export const migrationWorkflows: MigrationWorkflow[] = [
     goal: "Migrate the Customer Portal application off Java EE to Quarkus with zero downtime.",
     saveLessonsLearned: true,
     autoCreatePR: true,
+    owner: { id: 1, name: "Alice Nguyen" },
     createdAt: "2026-02-01T09:00:00Z",
     stages: [
       {
@@ -1471,6 +1482,7 @@ export const migrationWorkflows: MigrationWorkflow[] = [
     goal: "Retire the legacy mainframe billing system in favor of the Order Management platform.",
     saveLessonsLearned: true,
     autoCreatePR: false,
+    owner: { id: 2, name: "Bilal Khan" },
     createdAt: "2026-02-05T13:30:00Z",
     stages: [
       {
@@ -1502,6 +1514,7 @@ export const migrationWorkflows: MigrationWorkflow[] = [
     goal: "Prepare HR Self-Service for cloud deployment with updated configuration and docs.",
     saveLessonsLearned: false,
     autoCreatePR: true,
+    owner: { id: 3, name: "Carmen Diaz" },
     createdAt: "2026-02-10T10:00:00Z",
     stages: [
       {
@@ -1534,6 +1547,7 @@ export const migrationWorkflows: MigrationWorkflow[] = [
     saveLessonsLearned: true,
     autoCreatePR: true,
     isTemplate: true,
+    owner: { id: 0, name: "Demo User" },
     createdAt: "2026-01-25T09:00:00Z",
     stages: [
       {
@@ -1580,6 +1594,7 @@ export const migrationWorkflows: MigrationWorkflow[] = [
     saveLessonsLearned: false,
     autoCreatePR: false,
     isTemplate: true,
+    owner: { id: 0, name: "Demo User" },
     createdAt: "2026-01-26T09:00:00Z",
     stages: [
       {
@@ -1611,11 +1626,66 @@ export const workflowRuns: WorkflowRun[] = [
   {
     id: 1,
     workflowId: 1,
+    name: "cpq-8f3k1",
     status: "Succeeded",
     applications: [{ id: 1, name: "Customer Portal" }],
     targetBranch: "migration/customer-portal-quarkus",
     startedAt: "2026-02-03T09:00:00Z",
     completedAt: "2026-02-03T09:42:00Z",
+    commits: [
+      {
+        id: 1,
+        sha: "a1c9e2f",
+        message:
+          "Stage 5 (Validate & sign off): All smoke tests passed. Performance within baseline.",
+        stageId: 5,
+        timestamp: "2026-02-03T09:42:00Z",
+        url: "https://github.com/konveyor-demo/customer-portal/commit/a1c9e2f",
+      },
+      {
+        id: 2,
+        sha: "7bd40aa",
+        message:
+          "Stage 4 (Generate regression tests): Generated 48 unit tests and 6 contract tests.",
+        stageId: 4,
+        timestamp: "2026-02-03T09:36:00Z",
+        url: "https://github.com/konveyor-demo/customer-portal/commit/7bd40aa",
+      },
+      {
+        id: 3,
+        sha: "3f8e1c0",
+        message:
+          "Stage 3 (Refactor to Quarkus): Converted CDI beans and JAX-RS resources to Quarkus equivalents.",
+        stageId: 3,
+        timestamp: "2026-02-03T09:29:00Z",
+        url: "https://github.com/konveyor-demo/customer-portal/commit/3f8e1c0",
+      },
+      {
+        id: 4,
+        sha: "9c2a5d1",
+        message:
+          "Stage 2 (Map dependencies): Mapped 6 shared library dependencies across 2 applications.",
+        stageId: 2,
+        timestamp: "2026-02-03T09:15:00Z",
+        url: "https://github.com/konveyor-demo/customer-portal/commit/9c2a5d1",
+      },
+      {
+        id: 5,
+        sha: "e0a71b6",
+        message:
+          "Stage 1 (Assess codebase): Found 3 EE-specific APIs and 12 hardcoded configuration values.",
+        stageId: 1,
+        timestamp: "2026-02-03T09:08:00Z",
+        url: "https://github.com/konveyor-demo/customer-portal/commit/e0a71b6",
+      },
+      {
+        id: 6,
+        sha: "5d0f2ee",
+        message: "Initial commit for Customer Portal service",
+        timestamp: "2026-01-15T11:00:00Z",
+        url: "https://github.com/konveyor-demo/customer-portal/commit/5d0f2ee",
+      },
+    ],
     stageRuns: [
       {
         stageId: 1,
@@ -1623,6 +1693,22 @@ export const workflowRuns: WorkflowRun[] = [
         startedAt: "2026-02-03T09:00:00Z",
         completedAt: "2026-02-03T09:08:00Z",
         output: "Found 3 EE-specific APIs and 12 hardcoded configuration values.",
+        messages: [
+          {
+            id: 1,
+            author: "agent",
+            content:
+              'Starting "Assess codebase": scanning the repository for hardcoded dependencies and Java EE-specific APIs...',
+            timestamp: "2026-02-03T09:00:15Z",
+          },
+          {
+            id: 2,
+            author: "agent",
+            content:
+              "Found 3 EE-specific APIs (javax.ejb, javax.jms, javax.transaction) and 12 hardcoded configuration values. Full report attached below.",
+            timestamp: "2026-02-03T09:07:40Z",
+          },
+        ],
       },
       {
         stageId: 2,
@@ -1630,6 +1716,22 @@ export const workflowRuns: WorkflowRun[] = [
         startedAt: "2026-02-03T09:08:00Z",
         completedAt: "2026-02-03T09:15:00Z",
         output: "Mapped 6 shared library dependencies across 2 applications.",
+        messages: [
+          {
+            id: 3,
+            author: "agent",
+            content:
+              'Starting "Map dependencies": building a dependency graph to sequence migration of shared libraries...',
+            timestamp: "2026-02-03T09:08:10Z",
+          },
+          {
+            id: 4,
+            author: "agent",
+            content:
+              "Mapped 6 shared library dependencies across 2 applications. No circular dependencies detected.",
+            timestamp: "2026-02-03T09:14:30Z",
+          },
+        ],
       },
       {
         stageId: 3,
@@ -1638,6 +1740,34 @@ export const workflowRuns: WorkflowRun[] = [
         completedAt: "2026-02-03T09:29:00Z",
         approvedAt: "2026-02-03T09:29:00Z",
         output: "Converted CDI beans and JAX-RS resources to Quarkus equivalents.",
+        messages: [
+          {
+            id: 5,
+            author: "agent",
+            content:
+              'Starting "Refactor to Quarkus": applying automated transformations and updating build tooling...',
+            timestamp: "2026-02-03T09:15:20Z",
+          },
+          {
+            id: 6,
+            author: "agent",
+            content:
+              "Converted CDI beans and JAX-RS resources to Quarkus equivalents. 14 files changed. This stage requires your approval before I continue — please review the diff.",
+            timestamp: "2026-02-03T09:26:00Z",
+          },
+          {
+            id: 7,
+            author: "human",
+            content: "Reviewed the diff, changes look correct. Approving.",
+            timestamp: "2026-02-03T09:28:30Z",
+          },
+          {
+            id: 8,
+            author: "agent",
+            content: "Approved by reviewer. Continuing to the next stage.",
+            timestamp: "2026-02-03T09:29:00Z",
+          },
+        ],
       },
       {
         stageId: 4,
@@ -1645,6 +1775,22 @@ export const workflowRuns: WorkflowRun[] = [
         startedAt: "2026-02-03T09:29:00Z",
         completedAt: "2026-02-03T09:36:00Z",
         output: "Generated 48 unit tests and 6 contract tests.",
+        messages: [
+          {
+            id: 9,
+            author: "agent",
+            content:
+              'Starting "Generate regression tests": generating a regression test suite from existing usage patterns...',
+            timestamp: "2026-02-03T09:29:15Z",
+          },
+          {
+            id: 10,
+            author: "agent",
+            content:
+              "Generated 48 unit tests and 6 contract tests, covering critical customer journeys. All passing locally.",
+            timestamp: "2026-02-03T09:35:20Z",
+          },
+        ],
       },
       {
         stageId: 5,
@@ -1653,17 +1799,74 @@ export const workflowRuns: WorkflowRun[] = [
         completedAt: "2026-02-03T09:42:00Z",
         approvedAt: "2026-02-03T09:42:00Z",
         output: "All smoke tests passed. Performance within baseline.",
+        messages: [
+          {
+            id: 11,
+            author: "agent",
+            content:
+              'Starting "Validate & sign off": running smoke and performance tests against the migrated service...',
+            timestamp: "2026-02-03T09:36:15Z",
+          },
+          {
+            id: 12,
+            author: "agent",
+            content:
+              "All smoke tests passed. Performance within baseline. Ready for sign-off — please approve to close out this run.",
+            timestamp: "2026-02-03T09:40:45Z",
+          },
+          {
+            id: 13,
+            author: "human",
+            content:
+              "Performance looks good, no regressions observed. Approved for production.",
+            timestamp: "2026-02-03T09:41:40Z",
+          },
+          {
+            id: 14,
+            author: "agent",
+            content: "Approved by reviewer. Continuing to the next stage.",
+            timestamp: "2026-02-03T09:42:00Z",
+          },
+        ],
       },
     ],
   },
   {
     id: 2,
     workflowId: 2,
+    name: "lmbd-x9j2p",
     status: "Failed",
     applications: [{ id: 6, name: "Legacy Mainframe Billing" }],
     targetBranch: "migration/billing-decommission",
     startedAt: "2026-02-06T14:00:00Z",
     completedAt: "2026-02-06T14:19:00Z",
+    commits: [
+      {
+        id: 7,
+        sha: "b6e2a90",
+        message:
+          "Stage 2 (Map dependencies): Traced downstream consumers to the reconciliation service.",
+        stageId: 7,
+        timestamp: "2026-02-06T14:19:00Z",
+        url: "https://gitlab.com/konveyor-demo/legacy-mainframe-billing/-/commit/b6e2a90",
+      },
+      {
+        id: 8,
+        sha: "410fc3d",
+        message:
+          "Stage 1 (Assess codebase): Identified 2 remaining nightly batch integrations.",
+        stageId: 6,
+        timestamp: "2026-02-06T14:07:00Z",
+        url: "https://gitlab.com/konveyor-demo/legacy-mainframe-billing/-/commit/410fc3d",
+      },
+      {
+        id: 9,
+        sha: "88a0b21",
+        message: "Initial commit for Legacy Mainframe Billing service",
+        timestamp: "2026-01-20T08:30:00Z",
+        url: "https://gitlab.com/konveyor-demo/legacy-mainframe-billing/-/commit/88a0b21",
+      },
+    ],
     stageRuns: [
       {
         stageId: 6,
@@ -1671,6 +1874,21 @@ export const workflowRuns: WorkflowRun[] = [
         startedAt: "2026-02-06T14:00:00Z",
         completedAt: "2026-02-06T14:07:00Z",
         output: "Identified 2 remaining nightly batch integrations.",
+        messages: [
+          {
+            id: 101,
+            author: "agent",
+            content:
+              'Starting "Assess codebase": identifying remaining integrations that depend on the mainframe job...',
+            timestamp: "2026-02-06T14:00:10Z",
+          },
+          {
+            id: 102,
+            author: "agent",
+            content: "Identified 2 remaining nightly batch integrations.",
+            timestamp: "2026-02-06T14:06:30Z",
+          },
+        ],
       },
       {
         stageId: 7,
@@ -1678,6 +1896,21 @@ export const workflowRuns: WorkflowRun[] = [
         startedAt: "2026-02-06T14:07:00Z",
         completedAt: "2026-02-06T14:19:00Z",
         output: "Traced downstream consumers to the reconciliation service.",
+        messages: [
+          {
+            id: 103,
+            author: "agent",
+            content:
+              'Starting "Map dependencies": tracing downstream consumers of the billing batch job...',
+            timestamp: "2026-02-06T14:07:20Z",
+          },
+          {
+            id: 104,
+            author: "agent",
+            content: "Traced downstream consumers to the reconciliation service.",
+            timestamp: "2026-02-06T14:18:10Z",
+          },
+        ],
       },
       {
         stageId: 8,
@@ -1686,6 +1919,22 @@ export const workflowRuns: WorkflowRun[] = [
         completedAt: "2026-02-06T14:19:00Z",
         output:
           "Cut-over validation failed: reconciliation service is missing a mapped field.",
+        messages: [
+          {
+            id: 105,
+            author: "agent",
+            content:
+              'Starting "Validate cut-over": confirming Order Management fully covers the billing workload...',
+            timestamp: "2026-02-06T14:19:05Z",
+          },
+          {
+            id: 106,
+            author: "agent",
+            content:
+              "Cut-over validation failed: reconciliation service is missing a mapped field for the legacy account number. Halting the workflow — human review is required before I can retry.",
+            timestamp: "2026-02-06T14:19:45Z",
+          },
+        ],
       },
     ],
   },
