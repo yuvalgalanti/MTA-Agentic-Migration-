@@ -2,6 +2,7 @@ export const DevPaths = {
   // Developer perspective
   analysisProfiles: "/analysis-profiles",
   applications: "/applications",
+  applicationDetails: "/applications/:applicationId",
   applicationsAnalysisDetails:
     "/applications/:applicationId/analysis-details/:taskId",
   applicationsTaskDetails: "/applications/:applicationId/tasks/:taskId",
@@ -170,4 +171,8 @@ export interface AgenticAgentRunDetailsRoute {
 export interface AgenticWorkflowRunDetailsRoute {
   workflowId: string;
   runName: string;
+}
+
+export interface ApplicationDetailsRoute {
+  applicationId: string;
 }

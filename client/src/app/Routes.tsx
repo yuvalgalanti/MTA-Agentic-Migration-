@@ -32,6 +32,9 @@ const AssessmentSettings = lazy(
     )
 );
 const Applications = lazy(() => import("./pages/applications"));
+const ApplicationDetails = lazy(
+  () => import("./pages/applications/application-detail")
+);
 const ManageImports = lazy(() => import("./pages/applications/manage-imports"));
 const ImportDetails = lazy(
   () => import("./pages/applications/manage-imports-details")
@@ -176,6 +179,12 @@ export const migrationRoutes: IRoute<DevPathValues>[] = [
   {
     path: Paths.archetypeAssessmentSummary,
     comp: AssessmentSummary,
+    exact: false,
+  },
+  // Application details route must come before the applications list route due to route matching order
+  {
+    path: Paths.applicationDetails,
+    comp: ApplicationDetails,
     exact: false,
   },
   {

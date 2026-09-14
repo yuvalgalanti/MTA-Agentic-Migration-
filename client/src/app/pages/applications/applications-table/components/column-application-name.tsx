@@ -161,7 +161,18 @@ export const ColumnApplicationName: React.FC<{
         </Link>
       }
     >
-      <IconWithLabel icon={<StatusIcon />} label={application.name} />
+      <IconWithLabel
+        icon={<StatusIcon />}
+        label={
+          <Link
+            to={formatPath(Paths.applicationDetails, {
+              applicationId: application.id,
+            })}
+          >
+            {application.name}
+          </Link>
+        }
+      />
     </Popover>
   );
 };

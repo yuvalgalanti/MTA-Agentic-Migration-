@@ -95,7 +95,6 @@ import {
 
 import { StartWorkflowRunModal } from "../../migration-workflows/components/start-workflow-run-modal";
 import { AnalysisWizard } from "../analysis-wizard/analysis-wizard";
-import { ApplicationDetailDrawer } from "../application-detail-drawer/application-detail-drawer";
 import { ApplicationFormModal } from "../application-form";
 import { ApplicationIdentityModal } from "../application-identity-form/application-identity-modal";
 import { ImportApplicationsForm } from "../components/import-applications-form";
@@ -338,7 +337,6 @@ export const ApplicationsTable: FC = () => {
         }),
         variant: "success",
       });
-    clearActiveItem();
     setApplicationsToDelete([]);
   };
 
@@ -423,9 +421,7 @@ export const ApplicationsTable: FC = () => {
     isFilterEnabled: true,
     isSortEnabled: true,
     isPaginationEnabled: true,
-    isActiveItemEnabled: true,
     persistTo: {
-      activeItem: "urlParams",
       filter: "urlParams",
       pagination: "sessionStorage",
       sort: "sessionStorage",
@@ -655,7 +651,6 @@ export const ApplicationsTable: FC = () => {
       getTdProps,
       getColumnVisibility,
     },
-    activeItemDerivedState: { activeItem, clearActiveItem },
     columnState,
   } = tableControls;
 
@@ -1339,11 +1334,6 @@ export const ApplicationsTable: FC = () => {
           idPrefix="app-assessments-table"
           isTop={false}
           paginationProps={paginationProps}
-        />
-        <ApplicationDetailDrawer
-          application={activeItem}
-          onCloseClick={clearActiveItem}
-          onEditClick={() => setSaveApplicationModalState(activeItem)}
         />
       </div>
 
