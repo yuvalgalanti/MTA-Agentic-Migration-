@@ -4,9 +4,11 @@ import {
   Agent,
   KnowledgeBaseEntry,
   MigrationWorkflow,
+  Model,
   New,
   Ref,
   Skill,
+  SkillCollection,
   WorkflowRun,
 } from "../models";
 import { hub } from "../rest";
@@ -156,3 +158,48 @@ export const updateSkill = (obj: Skill) =>
 
 export const deleteSkill = (id: number) =>
   axios.delete<void>(`${SKILLS}/${id}`).then(() => {});
+
+// ----------------------------------------------------------------------------
+// Skill collections
+// ----------------------------------------------------------------------------
+
+const SKILL_COLLECTIONS = hub`/skill-collections`;
+
+export const getSkillCollections = () =>
+  axios
+    .get<SkillCollection[]>(SKILL_COLLECTIONS)
+    .then((response) => response.data);
+
+export const createSkillCollection = (obj: New<SkillCollection>) =>
+  axios
+    .post<SkillCollection>(SKILL_COLLECTIONS, obj)
+    .then((response) => response.data);
+
+export const updateSkillCollection = (obj: SkillCollection) =>
+  axios.put<void>(`${SKILL_COLLECTIONS}/${obj.id}`, obj).then(() => {});
+
+export const deleteSkillCollection = (id: number) =>
+  axios.delete<void>(`${SKILL_COLLECTIONS}/${id}`).then(() => {});
+
+// ----------------------------------------------------------------------------
+// Models (approved LLMs Agents may be configured to use)
+// ----------------------------------------------------------------------------
+
+const MODELS = hub`/models`;
+
+export const getModels = () =>
+  axios.get<Model[]>(MODELS).then((response) => response.data);
+
+export const createModel = (obj: New<Model>) =>
+  axios.post<Model>(MODELS, obj).then((response) => response.data);
+
+export const updateModel = (obj: Model) =>
+  axios.put<void>(`${MODELS}/${obj.id}`, obj).then(() => {});
+
+export const deleteModel = (id: number) =>
+  axios.delete<void>(`${MODELS}/${id}`).then(() => {});
+
+export const setDefaultModel = (id: number) =>
+  axios
+    .post<Model>(`${MODELS}/${id}/set-default`, {})
+    .then((response) => response.data);

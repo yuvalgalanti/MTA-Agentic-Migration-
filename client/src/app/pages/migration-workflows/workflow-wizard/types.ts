@@ -7,8 +7,9 @@ export interface WorkflowWizardStageValues {
 
 export interface WorkflowWizardFormValues {
   name: string;
-  goalTemplate: string;
-  goal: string;
+  description: string;
+  archetypeId: number | "";
+  targetProfileIds: number[];
   saveLessonsLearned: boolean;
   autoCreatePR: boolean;
   stages: WorkflowWizardStageValues[];

@@ -44,9 +44,10 @@ import {
 } from "@app/components/TableControls";
 import { useLocalTableControls } from "@app/hooks/table-controls";
 import { useDeleteAgentMutation, useFetchAgents } from "@app/queries/agents";
+import { useFetchModels } from "@app/queries/models";
 import { formatPath, getAxiosErrorMessage } from "@app/utils/utils";
 
-import { AGENT_ROLES } from "./agent-catalog";
+import { AGENT_ROLES, modelLabel } from "./agent-catalog";
 import { AgentForm } from "./components/agent-form";
 
 export const Agents: React.FC = () => {
@@ -55,6 +56,7 @@ export const Agents: React.FC = () => {
   const { pushNotification } = React.useContext(NotificationsContext);
 
   const { agents, isFetching, fetchError, refetch } = useFetchAgents();
+  const { models } = useFetchModels();
 
   const [createUpdateModalState, setCreateUpdateModalState] = React.useState<
     "create" | Agent | null
@@ -232,7 +234,7 @@ export const Agents: React.FC = () => {
                         {agent.role}
                       </Td>
                       <Td width={25} {...getTdProps({ columnKey: "model" })}>
-                        {agent.model}
+                        {modelLabel(models, agent.model)}
                       </Td>
                       <Td width={10} {...getTdProps({ columnKey: "status" })}>
                         <Label color={agent.status === "Active" ? "green" : "grey"}>

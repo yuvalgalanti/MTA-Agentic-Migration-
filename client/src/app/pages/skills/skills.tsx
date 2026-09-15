@@ -5,12 +5,20 @@ import {
   Button,
   ButtonVariant,
   Content,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
   EmptyState,
   EmptyStateBody,
   FileUpload,
   Form,
   FormGroup,
+  FormHelperText,
+  HelperText,
+  HelperTextItem,
   Label,
+  LabelGroup,
   Modal,
   ModalBody,
   ModalFooter,
@@ -18,6 +26,8 @@ import {
   PageSection,
   TextArea,
   TextInput,
+  ToggleGroup,
+  ToggleGroupItem,
   Toolbar,
   ToolbarContent,
   ToolbarGroup,
@@ -34,12 +44,18 @@ import {
   Tr,
 } from "@patternfly/react-table";
 
-import { New, Skill, SkillSource } from "@app/api/models";
+import {
+  New,
+  Skill,
+  SkillAssociation,
+  SkillSource,
+  SkillSourceType,
+} from "@app/api/models";
 import { AppPlaceholder } from "@app/components/AppPlaceholder";
 import { ConditionalRender } from "@app/components/ConditionalRender";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
 import { FilterToolbar, FilterType } from "@app/components/FilterToolbar";
-import SimpleSelect from "@app/components/FilterToolbar/components/SimpleSelect";
+import { MultiSelect } from "@app/components/FilterToolbar/components/MultiSelect";
 import { NotificationsContext } from "@app/components/NotificationsContext";
 import { SimplePagination } from "@app/components/SimplePagination";
 import {
@@ -48,6 +64,9 @@ import {
   TableRowContentWithControls,
 } from "@app/components/TableControls";
 import { useLocalTableControls } from "@app/hooks/table-controls";
+import { useFetchAgents } from "@app/queries/agents";
+import { useFetchApplications } from "@app/queries/applications";
+import { useFetchArchetypes } from "@app/queries/archetypes";
 import {
   useCreateSkillMutation,
   useDeleteSkillMutation,
@@ -67,10 +86,27 @@ const sourceColor = (source: SkillSource) => {
   }
 };
 
+const sourceTypeColor = (sourceType: SkillSourceType) => {
+  switch (sourceType) {
+    case "Inline":
+      return "purple" as const;
+    case "Git":
+      return "green" as const;
+    case "OCI":
+      return "blue" as const;
+  }
+};
+
+/** Encodes a SkillAssociation as a string value for the MultiSelect, e.g. "Agent:3". */
+const associationValue = (type: string, id: number) => `${type}:${id}`;
+
 const Skills: React.FC = () => {
   const { t } = useTranslation();
   const { pushNotification } = React.useContext(NotificationsContext);
   const { skills, isFetching, fetchError } = useFetchSkills();
+  const { agents } = useFetchAgents();
+  const { archetypes } = useFetchArchetypes();
+  const { data: applications } = useFetchApplications();
 
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [isImportOpen, setIsImportOpen] = React.useState(false);
@@ -78,10 +114,19 @@ const Skills: React.FC = () => {
   const [skillToView, setSkillToView] = React.useState<Skill | null>(null);
   const [viewContent, setViewContent] = React.useState("");
 
+  // Create Skill modal state
   const [newName, setNewName] = React.useState("");
   const [newDescription, setNewDescription] = React.useState("");
-  const [newSource, setNewSource] = React.useState<SkillSource>("Custom");
-  const [newProvider, setNewProvider] = React.useState("");
+  const [newSourceType, setNewSourceType] =
+    React.useState<SkillSourceType>("Inline");
+  const [newContent, setNewContent] = React.useState("");
+  const [newRepositoryUrl, setNewRepositoryUrl] = React.useState("");
+  const [newBranch, setNewBranch] = React.useState("main");
+  const [newPath, setNewPath] = React.useState("/");
+  const [newImageReference, setNewImageReference] = React.useState("");
+  const [newAssociationValues, setNewAssociationValues] = React.useState<
+    string[]
+  >([]);
 
   const [importFileName, setImportFileName] = React.useState("");
   const [importContent, setImportContent] = React.useState("");
@@ -90,8 +135,13 @@ const Skills: React.FC = () => {
   const resetForm = () => {
     setNewName("");
     setNewDescription("");
-    setNewSource("Custom");
-    setNewProvider("");
+    setNewSourceType("Inline");
+    setNewContent("");
+    setNewRepositoryUrl("");
+    setNewBranch("main");
+    setNewPath("/");
+    setNewImageReference("");
+    setNewAssociationValues([]);
     setImportFileName("");
     setImportContent("");
   };
@@ -145,13 +195,97 @@ const Skills: React.FC = () => {
     updateSkill({ ...skillToView, content: viewContent });
   };
 
+  // Options for the "Associated to" multiselect: Agents, Archetypes, Target
+  // profiles (nested under archetypes), and Applications, each tagged with a
+  // groupLabel badge so they render the same way as the reference prototype.
+  const associationOptions = React.useMemo(() => {
+    const options: {
+      value: string;
+      label: string;
+      groupLabel: string;
+    }[] = [];
+
+    agents.forEach((agent) => {
+      options.push({
+        value: associationValue("Agent", agent.id),
+        label: agent.name,
+        groupLabel: "Agent",
+      });
+    });
+    archetypes.forEach((archetype) => {
+      options.push({
+        value: associationValue("Archetype", archetype.id),
+        label: archetype.name,
+        groupLabel: "Archetype",
+      });
+    });
+    archetypes.forEach((archetype) => {
+      (archetype.profiles ?? []).forEach((profile) => {
+        options.push({
+          value: associationValue("Target profile", profile.id),
+          label: `${profile.name} (${archetype.name})`,
+          groupLabel: "Target profile",
+        });
+      });
+    });
+    (applications ?? []).forEach((application) => {
+      options.push({
+        value: associationValue("Application", application.id),
+        label: application.name,
+        groupLabel: "Application",
+      });
+    });
+    return options;
+  }, [agents, archetypes, applications]);
+
+  const toggleAssociation = (value: string) => {
+    setNewAssociationValues((current) =>
+      current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value]
+    );
+  };
+
+  const resolveAssociations = (values: string[]): SkillAssociation[] =>
+    values
+      .map((value) => {
+        const option = associationOptions.find((opt) => opt.value === value);
+        const [type, idStr] = value.split(":");
+        if (!option) return null;
+        return {
+          type: type as SkillAssociation["type"],
+          id: Number(idStr),
+          name: option.label,
+        };
+      })
+      .filter((item): item is SkillAssociation => item !== null);
+
+  const isCreateValid =
+    !!newName.trim() &&
+    (newSourceType === "Inline"
+      ? !!newContent.trim()
+      : newSourceType === "Git"
+        ? !!newRepositoryUrl.trim()
+        : !!newImageReference.trim());
+
   const handleCreate = () => {
     const payload: New<Skill> = {
       name: newName.trim(),
       description: newDescription.trim(),
-      source: newSource,
-      provider: newProvider.trim() || "Custom",
+      source: "Custom",
+      provider: "Your organization",
+      sourceType: newSourceType,
       createdAt: new Date().toISOString(),
+      associations: resolveAssociations(newAssociationValues),
+      ...(newSourceType === "Inline" && { content: newContent }),
+      ...(newSourceType === "Git" && {
+        repositoryUrl: newRepositoryUrl.trim(),
+        branch: newBranch.trim() || "main",
+        path: newPath.trim() || "/",
+      }),
+      ...(newSourceType === "OCI" && {
+        imageReference: newImageReference.trim(),
+      }),
     };
     createSkill(payload);
   };
@@ -168,6 +302,7 @@ const Skills: React.FC = () => {
       description: `Imported from ${importFileName}`,
       source: "Custom",
       provider: "Imported",
+      sourceType: "Inline",
       content: importContent,
       createdAt: new Date().toISOString(),
     };
@@ -182,6 +317,12 @@ const Skills: React.FC = () => {
     { value: "Custom", label: "Custom" },
   ];
 
+  const sourceTypeOptions: { value: SkillSourceType; label: string }[] = [
+    { value: "Inline", label: "Inline" },
+    { value: "Git", label: "Git" },
+    { value: "OCI", label: "OCI" },
+  ];
+
   const tableControls = useLocalTableControls({
     tableName: "skills-table",
     idProperty: "id",
@@ -190,8 +331,9 @@ const Skills: React.FC = () => {
     columnNames: {
       name: "Name",
       description: "Description",
+      sourceType: "Source type",
       source: "Source",
-      provider: "Provider",
+      associations: "Associated to",
     },
     isFilterEnabled: true,
     isSortEnabled: true,
@@ -206,6 +348,13 @@ const Skills: React.FC = () => {
         getItemValue: (item) => item?.name || "",
       },
       {
+        categoryKey: "sourceType",
+        title: "Source type",
+        type: FilterType.multiselect,
+        selectOptions: sourceTypeOptions.map((s) => ({ value: s.value })),
+        getItemValue: (item) => item?.sourceType || "",
+      },
+      {
         categoryKey: "source",
         title: "Source",
         type: FilterType.multiselect,
@@ -214,12 +363,12 @@ const Skills: React.FC = () => {
       },
     ],
     initialItemsPerPage: 10,
-    sortableColumns: ["name", "source", "provider"],
+    sortableColumns: ["name", "sourceType", "source"],
     initialSort: { columnKey: "name", direction: "asc" },
     getSortValues: (item) => ({
       name: item?.name || "",
+      sourceType: item?.sourceType || "",
       source: item?.source || "",
-      provider: item?.provider || "",
     }),
     isLoading: isFetching,
   });
@@ -247,9 +396,8 @@ const Skills: React.FC = () => {
         </Content>
         <Content>
           <Content component="p">
-            Manage the skill catalog available to agents. Skills can come from
-            Red Hat, your organization, or custom definitions you import or
-            create.
+            Codify migration knowledge for Agents to consume at execution time
+            using inline guidance, a git repository, or an OCI image.
           </Content>
         </Content>
       </PageSection>
@@ -295,8 +443,9 @@ const Skills: React.FC = () => {
                 <TableHeaderContentWithControls {...tableControls}>
                   <Th {...getThProps({ columnKey: "name" })} />
                   <Th {...getThProps({ columnKey: "description" })} />
+                  <Th {...getThProps({ columnKey: "sourceType" })} />
                   <Th {...getThProps({ columnKey: "source" })} />
-                  <Th {...getThProps({ columnKey: "provider" })} />
+                  <Th {...getThProps({ columnKey: "associations" })} />
                   <Th screenReaderText="Row actions" />
                 </TableHeaderContentWithControls>
               </Tr>
@@ -327,7 +476,7 @@ const Skills: React.FC = () => {
                       item={skill}
                       rowIndex={rowIndex}
                     >
-                      <Td width={20} {...getTdProps({ columnKey: "name" })}>
+                      <Td width={15} {...getTdProps({ columnKey: "name" })}>
                         <Button
                           variant="link"
                           isInline
@@ -336,22 +485,47 @@ const Skills: React.FC = () => {
                           {skill.name}
                         </Button>
                       </Td>
-                      <Td width={35} {...getTdProps({ columnKey: "description" })}>
+                      <Td width={25} {...getTdProps({ columnKey: "description" })}>
                         {skill.description || "—"}
                       </Td>
-                      <Td width={15} {...getTdProps({ columnKey: "source" })}>
+                      <Td width={10} {...getTdProps({ columnKey: "sourceType" })}>
+                        <Label
+                          color={sourceTypeColor(skill.sourceType)}
+                          isCompact
+                        >
+                          {skill.sourceType}
+                        </Label>
+                      </Td>
+                      <Td width={10} {...getTdProps({ columnKey: "source" })}>
                         <Label color={sourceColor(skill.source)} isCompact>
                           {skill.source}
                         </Label>
                       </Td>
-                      <Td width={15} {...getTdProps({ columnKey: "provider" })}>
-                        {skill.provider}
+                      <Td width={20} {...getTdProps({ columnKey: "associations" })}>
+                        {skill.associations?.length ? (
+                          <LabelGroup numLabels={2}>
+                            {skill.associations.map((assoc) => (
+                              <Label
+                                key={`${assoc.type}-${assoc.id}`}
+                                isCompact
+                                variant="outline"
+                              >
+                                {assoc.name}
+                              </Label>
+                            ))}
+                          </LabelGroup>
+                        ) : (
+                          "—"
+                        )}
                       </Td>
                       <Td isActionCell>
                         <ActionsColumn
                           items={[
                             {
-                              title: "View / Edit",
+                              title:
+                                skill.sourceType === "Inline"
+                                  ? "View / Edit"
+                                  : "View details",
                               onClick: () => openViewModal(skill),
                             },
                             {
@@ -385,9 +559,9 @@ const Skills: React.FC = () => {
           resetForm();
         }}
         variant="medium"
-        aria-label="Create skill"
+        aria-label="Create Skill"
       >
-        <ModalHeader title="Create skill" />
+        <ModalHeader title="Create Skill" />
         <ModalBody>
           <Form>
             <FormGroup label="Name" isRequired fieldId="skill-name">
@@ -398,39 +572,125 @@ const Skills: React.FC = () => {
               />
             </FormGroup>
             <FormGroup label="Description" fieldId="skill-description">
-              <TextArea
+              <TextInput
                 id="skill-description"
                 value={newDescription}
                 onChange={(_, value) => setNewDescription(value)}
-                autoResize
               />
             </FormGroup>
-            <FormGroup label="Source" fieldId="skill-source">
-              <SimpleSelect
-                toggleId="skill-source-toggle"
-                toggleAriaLabel="Skill source"
-                ariaLabel="Source"
-                value={newSource}
-                options={sourceOptions}
-                onSelect={(selection) =>
-                  setNewSource((selection as SkillSource) ?? "Custom")
-                }
-              />
+            <FormGroup label="Source type" isRequired fieldId="skill-source-type">
+              <ToggleGroup aria-label="Skill source type">
+                {sourceTypeOptions.map((option) => (
+                  <ToggleGroupItem
+                    key={option.value}
+                    text={option.label}
+                    buttonId={`skill-source-type-${option.value}`}
+                    isSelected={newSourceType === option.value}
+                    onChange={() => setNewSourceType(option.value)}
+                  />
+                ))}
+              </ToggleGroup>
             </FormGroup>
-            <FormGroup label="Provider" fieldId="skill-provider">
-              <TextInput
-                id="skill-provider"
-                value={newProvider}
-                onChange={(_, value) => setNewProvider(value)}
-                placeholder="e.g. Platform Engineering"
+
+            {newSourceType === "Inline" && (
+              <FormGroup label="Content" isRequired fieldId="skill-content">
+                <TextArea
+                  id="skill-content"
+                  value={newContent}
+                  onChange={(_, value) => setNewContent(value)}
+                  placeholder="Write migration knowledge in markdown..."
+                  autoResize
+                  style={{ fontFamily: "monospace", minHeight: "200px" }}
+                />
+              </FormGroup>
+            )}
+
+            {newSourceType === "Git" && (
+              <>
+                <FormGroup
+                  label="Repository URL"
+                  isRequired
+                  fieldId="skill-repository-url"
+                >
+                  <TextInput
+                    id="skill-repository-url"
+                    value={newRepositoryUrl}
+                    onChange={(_, value) => setNewRepositoryUrl(value)}
+                    placeholder="https://github.com/org/repo"
+                  />
+                </FormGroup>
+                <FormGroup label="Branch" fieldId="skill-branch">
+                  <TextInput
+                    id="skill-branch"
+                    value={newBranch}
+                    onChange={(_, value) => setNewBranch(value)}
+                    placeholder="main"
+                  />
+                </FormGroup>
+                <FormGroup label="Path" fieldId="skill-path">
+                  <TextInput
+                    id="skill-path"
+                    value={newPath}
+                    onChange={(_, value) => setNewPath(value)}
+                    placeholder="/"
+                  />
+                  <FormHelperText>
+                    <HelperText>
+                      <HelperTextItem>
+                        Path within the repository to the Skill file or
+                        directory.
+                      </HelperTextItem>
+                    </HelperText>
+                  </FormHelperText>
+                </FormGroup>
+              </>
+            )}
+
+            {newSourceType === "OCI" && (
+              <FormGroup
+                label="Image reference"
+                isRequired
+                fieldId="skill-image-reference"
+              >
+                <TextInput
+                  id="skill-image-reference"
+                  value={newImageReference}
+                  onChange={(_, value) => setNewImageReference(value)}
+                  placeholder="quay.io/org/skill-name:latest"
+                />
+              </FormGroup>
+            )}
+
+            <FormGroup label="Associated to" fieldId="skill-associations">
+              <MultiSelect
+                toggleId="skill-associations-select-toggle"
+                toggleAriaLabel="Skill associations select dropdown"
+                aria-label="Associated to"
+                placeholderText="Select associations..."
+                values={newAssociationValues}
+                hasChips
+                options={associationOptions}
+                onSelect={(selection) => {
+                  if (!selection) return;
+                  toggleAssociation(selection);
+                }}
+                onClear={() => setNewAssociationValues([])}
               />
+              <FormHelperText>
+                <HelperText>
+                  <HelperTextItem>
+                    Associate this Skill with one or more Agents, archetypes,
+                    target profiles, or applications.
+                  </HelperTextItem>
+                </HelperText>
+              </FormHelperText>
             </FormGroup>
           </Form>
         </ModalBody>
         <ModalFooter>
           <Button
             variant={ButtonVariant.primary}
-            isDisabled={!newName.trim() || isCreating}
+            isDisabled={!isCreateValid || isCreating}
             isLoading={isCreating}
             onClick={handleCreate}
           >
@@ -523,26 +783,88 @@ const Skills: React.FC = () => {
           description={skillToView?.description}
         />
         <ModalBody>
-          <TextArea
-            id="skill-view-content"
-            value={viewContent}
-            onChange={(_, value) => setViewContent(value)}
-            aria-label="Skill file content"
-            autoResize
-            style={{ fontFamily: "monospace", minHeight: "300px" }}
-          />
+          {skillToView?.associations?.length ? (
+            <DescriptionList
+              isHorizontal
+              style={{ marginBottom: "var(--pf-t--global--spacer--md)" }}
+            >
+              <DescriptionListGroup>
+                <DescriptionListTerm>Associated to</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <LabelGroup>
+                    {skillToView.associations.map((assoc) => (
+                      <Label
+                        key={`${assoc.type}-${assoc.id}`}
+                        isCompact
+                        variant="outline"
+                      >
+                        {assoc.name}
+                      </Label>
+                    ))}
+                  </LabelGroup>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            </DescriptionList>
+          ) : null}
+
+          {skillToView?.sourceType === "Git" && (
+            <DescriptionList isHorizontal>
+              <DescriptionListGroup>
+                <DescriptionListTerm>Repository URL</DescriptionListTerm>
+                <DescriptionListDescription>
+                  {skillToView.repositoryUrl}
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+              <DescriptionListGroup>
+                <DescriptionListTerm>Branch</DescriptionListTerm>
+                <DescriptionListDescription>
+                  {skillToView.branch || "main"}
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+              <DescriptionListGroup>
+                <DescriptionListTerm>Path</DescriptionListTerm>
+                <DescriptionListDescription>
+                  {skillToView.path || "/"}
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            </DescriptionList>
+          )}
+
+          {skillToView?.sourceType === "OCI" && (
+            <DescriptionList isHorizontal>
+              <DescriptionListGroup>
+                <DescriptionListTerm>Image reference</DescriptionListTerm>
+                <DescriptionListDescription>
+                  {skillToView.imageReference}
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            </DescriptionList>
+          )}
+
+          {(!skillToView || skillToView.sourceType === "Inline") && (
+            <TextArea
+              id="skill-view-content"
+              value={viewContent}
+              onChange={(_, value) => setViewContent(value)}
+              aria-label="Skill file content"
+              autoResize
+              style={{ fontFamily: "monospace", minHeight: "300px" }}
+            />
+          )}
         </ModalBody>
         <ModalFooter>
-          <Button
-            variant={ButtonVariant.primary}
-            isDisabled={
-              isSaving || viewContent === (skillToView?.content ?? "")
-            }
-            isLoading={isSaving}
-            onClick={handleSaveContent}
-          >
-            Save
-          </Button>
+          {(!skillToView || skillToView.sourceType === "Inline") && (
+            <Button
+              variant={ButtonVariant.primary}
+              isDisabled={
+                isSaving || viewContent === (skillToView?.content ?? "")
+              }
+              isLoading={isSaving}
+              onClick={handleSaveContent}
+            >
+              Save
+            </Button>
+          )}
           <Button
             variant={ButtonVariant.link}
             onClick={() => setSkillToView(null)}

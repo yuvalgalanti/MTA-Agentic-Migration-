@@ -246,7 +246,7 @@ const MigrationSidebar = ({
           </NavItem>
           <NavItem>
             <NavLink to={DevPaths.agenticWorkflows} activeClassName="pf-m-current">
-              Migration Workflows
+              Migration Plans
             </NavLink>
           </NavItem>
           <NavItem>
@@ -257,6 +257,14 @@ const MigrationSidebar = ({
           <NavItem>
             <NavLink to={DevPaths.agenticSkills} activeClassName="pf-m-current">
               Skills
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink
+              to={DevPaths.agenticSkillCollections}
+              activeClassName="pf-m-current"
+            >
+              Skill collections
             </NavLink>
           </NavItem>
         </NavExpandable>
@@ -285,6 +293,11 @@ const AdminSidebar = ({
         <NavItem>
           <NavLink to={AdminPaths.identities} activeClassName="pf-m-current">
             {t("terms.credentials")}
+          </NavLink>
+        </NavItem>
+        <NavItem>
+          <NavLink to={AdminPaths.models} activeClassName="pf-m-current">
+            Models
           </NavLink>
         </NavItem>
         <NavExpandable

@@ -92,7 +92,7 @@ const MigrationWorkflowDetails: React.FC = () => {
             <PageHeader
               title={workflow.name}
               breadcrumbs={[
-                { title: "Migration Workflows", path: Paths.agenticWorkflows },
+                { title: "Migration Plans", path: Paths.agenticWorkflows },
                 { title: workflow.name },
               ]}
               btnActions={

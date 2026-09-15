@@ -68,7 +68,7 @@ export const MigrationWorkflows: React.FC = () => {
     React.useState<MigrationWorkflow>();
 
   const onDeleteSuccess = () => {
-    pushNotification({ title: "Migration workflow deleted", variant: "success" });
+    pushNotification({ title: "Migration plan deleted", variant: "success" });
   };
   const onDeleteError = (error: AxiosError) => {
     pushNotification({ title: getAxiosErrorMessage(error), variant: "danger" });
@@ -90,7 +90,7 @@ export const MigrationWorkflows: React.FC = () => {
     <>
       <PageSection hasBodyWrapper={false}>
         <Content>
-          <Content component="h1">Migration Workflows</Content>
+          <Content component="h1">Migration Plans</Content>
         </Content>
         <Content>
           <Content component="p">
@@ -115,7 +115,7 @@ export const MigrationWorkflows: React.FC = () => {
                     variant={ButtonVariant.primary}
                     onClick={() => setWizardState({ mode: "create" })}
                   >
-                    Create workflow
+                    Create plan
                   </Button>
                 </ToolbarItem>
                 <ToolbarItem>
@@ -157,16 +157,16 @@ export const MigrationWorkflows: React.FC = () => {
             <EmptyState
               headingLevel="h2"
               icon={CubesIcon}
-              titleText="No migration workflows yet"
+              titleText="No migration plans yet"
               variant="sm"
             >
               <EmptyStateBody>
-                Create a workflow, or start from one of the available
-                templates, to build your first agentic migration plan.
+                Create a plan, or start from one of the available templates,
+                to build your first agentic migration plan.
               </EmptyStateBody>
             </EmptyState>
           ) : (
-            <Table aria-label="Migration workflows table" variant="compact">
+            <Table aria-label="Migration plans table" variant="compact">
               <Thead>
                 <Tr>
                   <Th width={25}>Name</Th>
@@ -263,7 +263,7 @@ export const MigrationWorkflows: React.FC = () => {
 
       {workflowToDelete && (
         <ConfirmDialog
-          title="Delete migration workflow"
+          title="Delete migration plan"
           titleIconVariant="warning"
           message={`Are you sure you want to delete "${workflowToDelete.name}"? This action cannot be undone.`}
           isOpen={true}

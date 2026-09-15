@@ -45,6 +45,7 @@ const AnalysisDetails = lazy(
 const Reports = lazy(() => import("./pages/reports"));
 const Controls = lazy(() => import("./pages/controls"));
 const Identities = lazy(() => import("./pages/identities"));
+const Models = lazy(() => import("./pages/models"));
 const Proxies = lazy(() => import("./pages/proxies"));
 const MigrationTargets = lazy(() => import("./pages/migration-targets"));
 const General = lazy(() => import("./pages/general"));
@@ -113,6 +114,7 @@ const WorkflowRunsPage = lazy(
   () => import("./pages/migration-workflows/workflow-runs-page")
 );
 const Skills = lazy(() => import("./pages/skills"));
+const SkillCollections = lazy(() => import("./pages/skill-collections"));
 
 export interface IRoute<T> {
   path: T;
@@ -327,6 +329,11 @@ export const migrationRoutes: IRoute<DevPathValues>[] = [
     comp: Skills,
     exact: false,
   },
+  {
+    path: Paths.agenticSkillCollections,
+    comp: SkillCollections,
+    exact: false,
+  },
 ];
 
 export const universalRoutes: IRoute<UniversalPathValues>[] = [
@@ -361,6 +368,11 @@ export const administrationRoutes: IRoute<AdminPathValues>[] = [
   {
     comp: Identities,
     path: Paths.identities,
+    exact: false,
+  },
+  {
+    comp: Models,
+    path: Paths.models,
     exact: false,
   },
   {

@@ -1,20 +1,25 @@
 import * as React from "react";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { AxiosError } from "axios";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { array, object, string } from "yup";
+import { array, mixed, object, string } from "yup";
 import {
   ActionGroup,
   Button,
   ButtonVariant,
+  Content,
+  Divider,
   Flex,
   FlexItem,
+  FormGroup,
   Form,
   Switch,
+  TextInput,
 } from "@patternfly/react-core";
+import { TrashIcon } from "@patternfly/react-icons";
 
-import { Agent, AgentRole, New } from "@app/api/models";
+import { Agent, AgentParameterType, AgentRole, New } from "@app/api/models";
 import { MultiSelect } from "@app/components/FilterToolbar/components/MultiSelect";
 import SimpleSelect from "@app/components/FilterToolbar/components/SimpleSelect";
 import {
@@ -28,26 +33,47 @@ import {
   useFetchAgents,
   useUpdateAgentMutation,
 } from "@app/queries/agents";
+import { useFetchModels } from "@app/queries/models";
+import { useFetchSkillCollections } from "@app/queries/skill-collections";
 import { duplicateNameCheck } from "@app/utils/utils";
 
 import {
   AGENT_IMAGES,
   AGENT_MCP_TOOLS,
-  AGENT_MODELS,
   AGENT_ROLES,
   AGENT_SKILLS,
 } from "../agent-catalog";
 
+const PARAMETER_TYPES: AgentParameterType[] = ["string", "number", "boolean"];
+
+interface ParameterFormValue {
+  name: string;
+  type: AgentParameterType;
+  description: string;
+  defaultValue: string;
+}
+
 interface FormValues {
   name: string;
-  prompt: string;
+  description: string;
   role: AgentRole;
   image: string;
   model: string;
   skills: string[];
+  skillCollections: string[];
   mcpTools: string[];
+  prompt: string;
+  capabilities: string;
+  parameters: ParameterFormValue[];
   isActive: boolean;
 }
+
+const blankParameter = (): ParameterFormValue => ({
+  name: "",
+  type: "string",
+  description: "",
+  defaultValue: "",
+});
 
 export interface AgentFormProps {
   agent: Agent | null;
@@ -58,6 +84,8 @@ export const AgentForm: React.FC<AgentFormProps> = ({ agent, onClose }) => {
   const { t } = useTranslation();
   const { pushNotification } = React.useContext(NotificationsContext);
   const { agents } = useFetchAgents();
+  const { models } = useFetchModels();
+  const { skillCollections } = useFetchSkillCollections();
 
   const onCreateOrUpdateSuccess = (data: Agent) => {
     pushNotification({
@@ -93,12 +121,34 @@ export const AgentForm: React.FC<AgentFormProps> = ({ agent, onClose }) => {
     value: img.value,
     label: img.label,
   }));
-  const modelOptions = AGENT_MODELS.map((model) => ({
-    value: model.value,
-    label: `${model.label} (${model.provider})`,
+  // Only Models with a Verified connection may be assigned to an Agent. If
+  // the Agent being edited already references a Model that is no longer
+  // Verified, keep it selectable so editing the Agent doesn't silently drop
+  // its current selection.
+  const verifiedModels = models.filter((m) => m.connectionStatus === "Verified");
+  const selectableModels = verifiedModels.some((m) => m.modelId === agent?.model)
+    ? verifiedModels
+    : [
+        ...verifiedModels,
+        ...models.filter((m) => m.modelId === agent?.model),
+      ];
+  const modelOptions = selectableModels.map((model) => ({
+    value: model.modelId,
+    label:
+      model.connectionStatus === "Verified"
+        ? `${model.name} (${model.provider})`
+        : `${model.name} (${model.provider}) — ${model.connectionStatus}`,
   }));
   const skillOptions = AGENT_SKILLS.map((skill) => ({ value: skill, label: skill }));
+  const skillCollectionOptions = skillCollections.map((collection) => ({
+    value: collection.name,
+    label: collection.name,
+  }));
   const mcpToolOptions = AGENT_MCP_TOOLS.map((tool) => ({ value: tool, label: tool }));
+  const parameterTypeOptions = PARAMETER_TYPES.map((type) => ({
+    value: type,
+    label: type.charAt(0).toUpperCase() + type.slice(1),
+  }));
 
   const validationSchema = object().shape({
     name: string()
@@ -111,6 +161,7 @@ export const AgentForm: React.FC<AgentFormProps> = ({ agent, onClose }) => {
         "An agent with this name already exists. Use a different name.",
         (value) => duplicateNameCheck(agents, agent || null, value || "")
       ),
+    description: string().trim(),
     prompt: string()
       .trim()
       .max(2000, t("validation.maxLength", { length: 2000 })),
@@ -118,7 +169,17 @@ export const AgentForm: React.FC<AgentFormProps> = ({ agent, onClose }) => {
     image: string().required(t("validation.required")),
     model: string().required(t("validation.required")),
     skills: array().of(string()),
+    skillCollections: array().of(string()),
     mcpTools: array().of(string()),
+    capabilities: string(),
+    parameters: array().of(
+      object().shape({
+        name: string().trim().required(t("validation.required")),
+        type: mixed<AgentParameterType>().oneOf(PARAMETER_TYPES).required(),
+        description: string(),
+        defaultValue: string(),
+      })
+    ),
   });
 
   const {
@@ -128,27 +189,56 @@ export const AgentForm: React.FC<AgentFormProps> = ({ agent, onClose }) => {
   } = useForm<FormValues>({
     defaultValues: {
       name: agent?.name || "",
-      prompt: agent?.prompt || "",
+      description: agent?.description || "",
       role: agent?.role || "Code Analysis",
       image: agent?.image || AGENT_IMAGES[0].value,
-      model: agent?.model || AGENT_MODELS[0].value,
+      model: agent?.model || verifiedModels[0]?.modelId || "",
       skills: agent?.skills || [],
+      skillCollections: agent?.skillCollections || [],
       mcpTools: agent?.mcpTools || [],
+      prompt: agent?.prompt || "",
+      capabilities: (agent?.capabilities || []).join("\n"),
+      parameters: agent?.parameters?.length
+        ? agent.parameters.map((param) => ({
+            name: param.name,
+            type: param.type,
+            description: param.description || "",
+            defaultValue: param.defaultValue || "",
+          }))
+        : [],
       isActive: agent ? agent.status === "Active" : true,
     },
     resolver: yupResolver(validationSchema),
     mode: "all",
   });
 
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "parameters",
+    keyName: "key",
+  });
+
   const onSubmit = (formValues: FormValues) => {
     const payload: New<Agent> = {
       name: formValues.name.trim(),
+      description: formValues.description.trim() || undefined,
       prompt: formValues.prompt.trim(),
       role: formValues.role,
       image: formValues.image,
       model: formValues.model,
       skills: formValues.skills,
+      skillCollections: formValues.skillCollections,
       mcpTools: formValues.mcpTools,
+      capabilities: formValues.capabilities
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+      parameters: formValues.parameters.map((param) => ({
+        name: param.name.trim(),
+        type: param.type,
+        description: param.description?.trim() || undefined,
+        defaultValue: param.defaultValue?.trim() || undefined,
+      })),
       status: formValues.isActive ? "Active" : "Inactive",
       createdAt: agent?.createdAt || new Date().toISOString(),
     };
@@ -183,9 +273,9 @@ export const AgentForm: React.FC<AgentFormProps> = ({ agent, onClose }) => {
       />
       <HookFormPFTextArea
         control={control}
-        name="prompt"
-        label="Agent prompt"
-        fieldId="agent-prompt"
+        name="description"
+        label="Description"
+        fieldId="agent-description"
       />
       <Flex gap={{ default: "gapMd" }}>
         <FlexItem grow={{ default: "grow" }}>
@@ -233,11 +323,13 @@ export const AgentForm: React.FC<AgentFormProps> = ({ agent, onClose }) => {
         label="Model"
         fieldId="agent-model-select"
         isRequired
+        helperText="Select the approved Model this Agent uses."
         renderInput={({ field: { value, name, onChange } }) => (
           <SimpleSelect
             toggleId="agent-model-select-toggle"
             toggleAriaLabel="Agent model select dropdown toggle"
             ariaLabel={name}
+            placeholderText="Select a Model..."
             value={value}
             options={modelOptions}
             onSelect={(selection) => onChange(selection ?? "")}
@@ -254,10 +346,35 @@ export const AgentForm: React.FC<AgentFormProps> = ({ agent, onClose }) => {
             toggleId="agent-skills-select-toggle"
             toggleAriaLabel="Agent skills select dropdown toggle"
             aria-label={name}
-            placeholderText="Select skills..."
+            placeholderText="Add a Skill..."
             values={value}
             hasChips
+            hasCheckbox
             options={skillOptions}
+            onSelect={(selection) => {
+              if (!selection) return;
+              toggleSelection(value, selection, onChange);
+            }}
+            onClear={() => onChange([])}
+          />
+        )}
+      />
+      <HookFormPFGroupController
+        control={control}
+        name="skillCollections"
+        label="Skill collections"
+        fieldId="agent-skill-collections-select"
+        helperText="Skill collections bundle related Skills together."
+        renderInput={({ field: { value, name, onChange } }) => (
+          <MultiSelect
+            toggleId="agent-skill-collections-select-toggle"
+            toggleAriaLabel="Agent skill collections select dropdown toggle"
+            aria-label={name}
+            placeholderText="Add Skill collection"
+            values={value}
+            hasChips
+            hasCheckbox
+            options={skillCollectionOptions}
             onSelect={(selection) => {
               if (!selection) return;
               toggleSelection(value, selection, onChange);
@@ -279,6 +396,7 @@ export const AgentForm: React.FC<AgentFormProps> = ({ agent, onClose }) => {
             placeholderText="Select MCP tools..."
             values={value}
             hasChips
+            hasCheckbox
             options={mcpToolOptions}
             onSelect={(selection) => {
               if (!selection) return;
@@ -288,6 +406,128 @@ export const AgentForm: React.FC<AgentFormProps> = ({ agent, onClose }) => {
           />
         )}
       />
+      <HookFormPFTextArea
+        control={control}
+        name="prompt"
+        label="Persona prompt"
+        fieldId="agent-prompt"
+        helperText="System prompt that defines the Agent's behavior and expertise."
+      />
+      <HookFormPFTextArea
+        control={control}
+        name="capabilities"
+        label="Capabilities"
+        fieldId="agent-capabilities"
+        helperText="Enter one capability per line."
+        rows={4}
+      />
+
+      <FormGroup label="Parameters" fieldId="agent-parameters">
+        <Content component="small">
+          Declare the typed inputs this Agent accepts.
+        </Content>
+      </FormGroup>
+      {fields.map((field, index) => (
+        <React.Fragment key={field.key}>
+          {index > 0 && <Divider />}
+          <Flex gap={{ default: "gapMd" }} alignItems={{ default: "alignItemsFlexEnd" }}>
+            <FlexItem grow={{ default: "grow" }}>
+              <Controller
+                control={control}
+                name={`parameters.${index}.name`}
+                render={({ field: nameField }) => (
+                  <FormGroup
+                    label="Name"
+                    isRequired
+                    fieldId={`agent-parameter-${index}-name`}
+                  >
+                    <TextInput
+                      id={`agent-parameter-${index}-name`}
+                      value={nameField.value}
+                      onChange={(_, value) => nameField.onChange(value)}
+                    />
+                  </FormGroup>
+                )}
+              />
+            </FlexItem>
+            <FlexItem>
+              <Controller
+                control={control}
+                name={`parameters.${index}.type`}
+                render={({ field: typeField }) => (
+                  <FormGroup
+                    label="Type"
+                    fieldId={`agent-parameter-${index}-type`}
+                  >
+                    <SimpleSelect
+                      toggleId={`agent-parameter-${index}-type-toggle`}
+                      toggleAriaLabel="Parameter type select"
+                      ariaLabel="Parameter type"
+                      value={typeField.value}
+                      options={parameterTypeOptions}
+                      onSelect={(selection) =>
+                        typeField.onChange(
+                          (selection as AgentParameterType) ?? "string"
+                        )
+                      }
+                    />
+                  </FormGroup>
+                )}
+              />
+            </FlexItem>
+            <FlexItem>
+              <Button
+                variant="plain"
+                aria-label="Remove Parameter"
+                icon={<TrashIcon />}
+                onClick={() => remove(index)}
+              />
+            </FlexItem>
+          </Flex>
+          <Flex gap={{ default: "gapMd" }}>
+            <FlexItem grow={{ default: "grow" }}>
+              <Controller
+                control={control}
+                name={`parameters.${index}.description`}
+                render={({ field: descField }) => (
+                  <FormGroup
+                    label="Description"
+                    fieldId={`agent-parameter-${index}-description`}
+                  >
+                    <TextInput
+                      id={`agent-parameter-${index}-description`}
+                      value={descField.value}
+                      onChange={(_, value) => descField.onChange(value)}
+                    />
+                  </FormGroup>
+                )}
+              />
+            </FlexItem>
+            <FlexItem grow={{ default: "grow" }}>
+              <Controller
+                control={control}
+                name={`parameters.${index}.defaultValue`}
+                render={({ field: defField }) => (
+                  <FormGroup
+                    label="Default value"
+                    fieldId={`agent-parameter-${index}-default`}
+                  >
+                    <TextInput
+                      id={`agent-parameter-${index}-default`}
+                      value={defField.value}
+                      onChange={(_, value) => defField.onChange(value)}
+                    />
+                  </FormGroup>
+                )}
+              />
+            </FlexItem>
+          </Flex>
+        </React.Fragment>
+      ))}
+      <Button variant="link" onClick={() => append(blankParameter())}>
+        Add Parameter
+      </Button>
+
       <Controller
         control={control}
         name="isActive"

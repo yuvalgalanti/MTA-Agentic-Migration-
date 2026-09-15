@@ -42,9 +42,10 @@ import {
   useFetchAgentById,
 } from "@app/queries/agents";
 import { useFetchMigrationWorkflows } from "@app/queries/migration-workflows";
+import { useFetchModels } from "@app/queries/models";
 import { formatPath, getAxiosErrorMessage } from "@app/utils/utils";
 
-import { AGENT_IMAGES, AGENT_MODELS } from "../agent-catalog";
+import { AGENT_IMAGES, modelLabel } from "../agent-catalog";
 import { AgentForm } from "../components/agent-form";
 
 import { AgentRunsTab } from "./components/agent-runs-tab";
@@ -63,6 +64,7 @@ const AgentDetails: React.FC = () => {
 
   const { agent, isFetching, fetchError, refetch } = useFetchAgentById(agentId);
   const { workflows } = useFetchMigrationWorkflows();
+  const { models } = useFetchModels();
 
   const onDeleteSuccess = () => {
     pushNotification({ title: "Agent deleted", variant: "success" });
@@ -75,11 +77,6 @@ const AgentDetails: React.FC = () => {
     onDeleteSuccess,
     onDeleteError
   );
-
-  const modelLabel = (modelValue: string) => {
-    const model = AGENT_MODELS.find((m) => m.value === modelValue);
-    return model ? `${model.label} (${model.provider})` : modelValue;
-  };
 
   const imageLabel = (imageKey: string) => {
     const img = AGENT_IMAGES.find((i) => i.value === imageKey);
@@ -173,7 +170,17 @@ const AgentDetails: React.FC = () => {
                             </DescriptionListGroup>
                             <DescriptionListGroup>
                               <DescriptionListTerm>
-                                Agent prompt
+                                Description
+                              </DescriptionListTerm>
+                              <DescriptionListDescription>
+                                {agent.description || (
+                                  <EmptyTextMessage message="None" />
+                                )}
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>
+                                Persona prompt
                               </DescriptionListTerm>
                               <DescriptionListDescription>
                                 {agent.prompt || (
@@ -204,7 +211,7 @@ const AgentDetails: React.FC = () => {
                             <DescriptionListGroup>
                               <DescriptionListTerm>Model</DescriptionListTerm>
                               <DescriptionListDescription>
-                                {modelLabel(agent.model)}
+                                {modelLabel(models, agent.model)}
                               </DescriptionListDescription>
                             </DescriptionListGroup>
                             <DescriptionListGroup>
@@ -215,6 +222,25 @@ const AgentDetails: React.FC = () => {
                                     {agent.skills.map((skill) => (
                                       <Label key={skill} color="purple">
                                         {skill}
+                                      </Label>
+                                    ))}
+                                  </LabelGroup>
+                                ) : (
+                                  <EmptyTextMessage message="None" />
+                                )}
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>
+                                Skill collections
+                              </DescriptionListTerm>
+                              <DescriptionListDescription>
+                                {agent.skillCollections &&
+                                agent.skillCollections.length > 0 ? (
+                                  <LabelGroup>
+                                    {agent.skillCollections.map((name) => (
+                                      <Label key={name} color="teal">
+                                        {name}
                                       </Label>
                                     ))}
                                   </LabelGroup>
@@ -240,6 +266,51 @@ const AgentDetails: React.FC = () => {
                                       </Label>
                                     ))}
                                   </LabelGroup>
+                                ) : (
+                                  <EmptyTextMessage message="None" />
+                                )}
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>
+                                Capabilities
+                              </DescriptionListTerm>
+                              <DescriptionListDescription>
+                                {agent.capabilities &&
+                                agent.capabilities.length > 0 ? (
+                                  <ul style={{ margin: 0, paddingLeft: "1.1em" }}>
+                                    {agent.capabilities.map((capability, i) => (
+                                      <li key={i}>{capability}</li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <EmptyTextMessage message="None" />
+                                )}
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>
+                                Parameters
+                              </DescriptionListTerm>
+                              <DescriptionListDescription>
+                                {agent.parameters &&
+                                agent.parameters.length > 0 ? (
+                                  <Flex direction={{ default: "column" }}>
+                                    {agent.parameters.map((param) => (
+                                      <FlexItem key={param.name}>
+                                        <Label isCompact color="grey">
+                                          {param.type}
+                                        </Label>{" "}
+                                        <strong>{param.name}</strong>
+                                        {param.description
+                                          ? ` — ${param.description}`
+                                          : ""}
+                                        {param.defaultValue
+                                          ? ` (default: ${param.defaultValue})`
+                                          : ""}
+                                      </FlexItem>
+                                    ))}
+                                  </Flex>
                                 ) : (
                                   <EmptyTextMessage message="None" />
                                 )}

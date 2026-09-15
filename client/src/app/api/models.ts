@@ -1043,25 +1043,92 @@ export type AgentRole =
 
 export type AgentStatus = "Active" | "Inactive";
 
+export type AgentParameterType = "string" | "number" | "boolean";
+
+/** A typed input declared by an Agent, resolved when the Agent is invoked by a workflow stage. */
+export interface AgentParameter {
+  name: string;
+  type: AgentParameterType;
+  description?: string;
+  defaultValue?: string;
+}
+
 export interface Agent {
   id: number;
   name: string;
-  /** System prompt that defines this agent's behaviour. */
+  description?: string;
+  /** System prompt that defines this agent's behaviour and expertise. */
   prompt?: string;
   role: AgentRole;
   /** Key of a predefined avatar image (see `AGENT_IMAGES` in agent-catalog.ts). */
   image: string;
   status: AgentStatus;
-  /** LLM backing this agent, e.g. "gpt-4o" or "claude-3.7-sonnet". */
+  /** LLM backing this agent, e.g. "gpt-4o" or "claude-3-7-sonnet". Matches a `Model.modelId`. */
   model: string;
   /** Skills selected from the shared skills catalog. */
   skills: string[];
+  /** Skill collections selected from the shared skill collections catalog. */
+  skillCollections?: string[];
   /** MCP tool servers this agent is permitted to call. */
   mcpTools: string[];
+  /** Free-text capabilities, one per line. */
+  capabilities?: string[];
+  /** Typed inputs this Agent accepts when invoked. */
+  parameters?: AgentParameter[];
+  createdAt: string; // ISO 8601 datetime
+}
+
+/** A named, reusable bundle of Skills that can be attached to an Agent as a group. */
+export interface SkillCollection {
+  id: number;
+  name: string;
+  description?: string;
+  skillIds: number[];
+  createdAt: string; // ISO 8601 datetime
+}
+
+export type ModelConnectionStatus = "Verified" | "Pending" | "Unreachable";
+
+/**
+ * An approved LLM that Platform Engineers configure and Enterprise Architects
+ * can assign to Agents. Connection status is (simulated to be) checked
+ * automatically after each save.
+ */
+export interface Model {
+  id: number;
+  name: string;
+  description?: string;
+  provider: string;
+  /** The provider-specific model identifier, e.g. "claude-3-7-sonnet". */
+  modelId: string;
+  endpoint?: string;
+  /** Reference to the Identity/Credential used to connect to this provider. */
+  credentialId?: number;
+  connectionStatus: ModelConnectionStatus;
+  /** Human-readable detail shown alongside a Pending/Unreachable status. */
+  connectionMessage?: string;
+  /** Exactly one Model should be the organizational default. */
+  isDefault: boolean;
   createdAt: string; // ISO 8601 datetime
 }
 
 export type SkillSource = "Red Hat" | "Organization" | "Custom";
+
+/** How the Skill's content is delivered to the Agent at execution time. */
+export type SkillSourceType = "Inline" | "Git" | "OCI";
+
+export type SkillAssociationType =
+  | "Agent"
+  | "Archetype"
+  | "Target profile"
+  | "Application";
+
+/** A single entity (Agent, Archetype, Target profile, or Application) this Skill is associated to. */
+export interface SkillAssociation {
+  type: SkillAssociationType;
+  id: number;
+  name: string;
+}
 
 export interface Skill {
   id: number;
@@ -1069,8 +1136,20 @@ export interface Skill {
   description?: string;
   source: SkillSource;
   provider: string;
-  /** Raw content of the imported skill file, if any. */
+  /** How the skill content is sourced: written inline, from a git repo, or an OCI image. */
+  sourceType: SkillSourceType;
+  /** Raw content of the imported skill file, if any. Used when sourceType is "Inline". */
   content?: string;
+  /** Git repository URL. Used when sourceType is "Git". */
+  repositoryUrl?: string;
+  /** Git branch. Used when sourceType is "Git". Defaults to "main". */
+  branch?: string;
+  /** Path within the repository to the Skill file or directory. Used when sourceType is "Git". */
+  path?: string;
+  /** OCI image reference, e.g. "quay.io/org/skill-name:latest". Used when sourceType is "OCI". */
+  imageReference?: string;
+  /** Agents, archetypes, target profiles, or applications this Skill is associated with. */
+  associations?: SkillAssociation[];
   createdAt: string; // ISO 8601 datetime
 }
 
@@ -1086,6 +1165,10 @@ export interface MigrationWorkflow {
   id: number;
   name: string;
   goal: string;
+  /** The Archetype this Plan targets, e.g. "Java EE Application". */
+  archetypeId?: number;
+  /** Target profiles (from the selected Archetype) this Plan migrates applications to. */
+  targetProfileIds?: number[];
   stages: WorkflowStage[];
   /** Whether to persist lessons learned from runs into the knowledge base. */
   saveLessonsLearned: boolean;

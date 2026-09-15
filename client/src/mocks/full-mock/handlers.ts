@@ -684,6 +684,19 @@ const agenticMigrationHandlers: RestHandler[] = [
   ...crud(hub`/agents`, fx.agents),
   ...crud(hub`/migration-workflows`, fx.migrationWorkflows),
   ...crud(hub`/skills`, fx.skills),
+  ...crud(hub`/skill-collections`, fx.skillCollections),
+  ...crud(hub`/models`, fx.models),
+
+  rest.post(hub`/models/:id/set-default`, (req, res, ctx) => {
+    const id = Number(req.params.id);
+    fx.models.forEach((model) => {
+      model.isDefault = model.id === id;
+    });
+    const model = fx.models.find((m) => m.id === id);
+    return model
+      ? res(ctx.json(model))
+      : res(ctx.status(404), ctx.json({ message: "Not found" }));
+  }),
 
   rest.get(hub`/workflow-runs`, (_req, res, ctx) => {
     const runs = fx.workflowRuns.map((run) => {

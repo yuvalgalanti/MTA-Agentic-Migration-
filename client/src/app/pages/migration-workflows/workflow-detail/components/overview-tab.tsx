@@ -14,18 +14,15 @@ import {
 } from "@patternfly/react-core";
 
 import { Agent, MigrationWorkflow } from "@app/api/models";
+import { useFetchModels } from "@app/queries/models";
 
-import { AGENT_MODELS } from "../../../agents/agent-catalog";
-
-const modelLabel = (modelValue: string) => {
-  const model = AGENT_MODELS.find((m) => m.value === modelValue);
-  return model ? `${model.label} (${model.provider})` : modelValue;
-};
+import { modelLabel } from "../../../agents/agent-catalog";
 
 export const OverviewTab: React.FC<{
   workflow: MigrationWorkflow;
   agents: Agent[];
 }> = ({ workflow, agents }) => {
+  const { models } = useFetchModels();
   return (
     <Flex direction={{ default: "column" }} gap={{ default: "gapXl" }}>
       <FlexItem>
@@ -105,7 +102,7 @@ export const OverviewTab: React.FC<{
                         {agent && (
                           <FlexItem>
                             <Label color="purple" isCompact>
-                              {modelLabel(agent.model)}
+                              {modelLabel(models, agent.model)}
                             </Label>
                           </FlexItem>
                         )}

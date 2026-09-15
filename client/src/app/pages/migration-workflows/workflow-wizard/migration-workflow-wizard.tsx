@@ -22,10 +22,11 @@ import {
 } from "@patternfly/react-core";
 
 import { Agent, MigrationWorkflow, New } from "@app/api/models";
+import { MultiSelect } from "@app/components/FilterToolbar/components/MultiSelect";
 import SimpleSelect from "@app/components/FilterToolbar/components/SimpleSelect";
 import { NotificationsContext } from "@app/components/NotificationsContext";
-import { GOAL_TEMPLATES } from "@app/pages/agents/agent-catalog";
 import { useFetchAgents } from "@app/queries/agents";
+import { useFetchArchetypes } from "@app/queries/archetypes";
 import {
   useCreateMigrationWorkflowMutation,
   useUpdateMigrationWorkflowMutation,
@@ -45,14 +46,14 @@ const blankStage = (): WorkflowWizardFormValues["stages"][number] => ({
 const validationSchema = object().shape({
   name: string()
     .trim()
-    .required("A workflow name is required.")
+    .required("A plan name is required.")
     .min(3, "Must be at least 3 characters.")
     .max(120, "Must be 120 characters or fewer."),
-  goalTemplate: string(),
-  goal: string()
-    .trim()
-    .required("A migration plan goal is required.")
-    .max(500, "Must be 500 characters or fewer."),
+  description: string().trim().max(500, "Must be 500 characters or fewer."),
+  archetypeId: number()
+    .typeError("Select an archetype for this plan.")
+    .required("Select an archetype for this plan."),
+  targetProfileIds: array().of(number()),
   saveLessonsLearned: boolean(),
   autoCreatePR: boolean(),
   stages: array()
@@ -89,17 +90,18 @@ export const MigrationWorkflowWizard: React.FC<MigrationWorkflowWizardProps> = (
 
   const { agents } = useFetchAgents();
   const activeAgents: Agent[] = agents.filter((a) => a.status === "Active");
+  const { archetypes } = useFetchArchetypes();
 
-  const goalTemplateOptions = GOAL_TEMPLATES.map((t) => ({
-    value: t.value,
-    label: t.label,
+  const archetypeOptions = archetypes.map((archetype) => ({
+    value: String(archetype.id),
+    label: archetype.name,
   }));
 
   const onCreateOrUpdateSuccess = (savedWorkflow: MigrationWorkflow) => {
     pushNotification({
       title: workflow
-        ? `Migration workflow "${savedWorkflow.name}" saved`
-        : `Migration workflow "${savedWorkflow.name}" created`,
+        ? `Migration plan "${savedWorkflow.name}" saved`
+        : `Migration plan "${savedWorkflow.name}" created`,
       variant: "success",
     });
     onSaved(savedWorkflow);
@@ -129,8 +131,9 @@ export const MigrationWorkflowWizard: React.FC<MigrationWorkflowWizardProps> = (
         : seedFrom
           ? `${seedFrom.name} (copy)`
           : "",
-      goalTemplate: "custom",
-      goal: source?.goal || "",
+      description: source?.goal || "",
+      archetypeId: source?.archetypeId ?? "",
+      targetProfileIds: source?.targetProfileIds ?? [],
       saveLessonsLearned: source?.saveLessonsLearned ?? true,
       autoCreatePR: source?.autoCreatePR ?? false,
       stages: source?.stages.length
@@ -153,28 +156,41 @@ export const MigrationWorkflowWizard: React.FC<MigrationWorkflowWizardProps> = (
   });
 
   const name = useWatch({ control, name: "name" });
-  const goal = useWatch({ control, name: "goal" });
+  const description = useWatch({ control, name: "description" });
+  const archetypeId = useWatch({ control, name: "archetypeId" });
+  const targetProfileIds = useWatch({ control, name: "targetProfileIds" });
   const stagesValues = useWatch({ control, name: "stages" });
   const saveLessonsLearned = useWatch({ control, name: "saveLessonsLearned" });
   const autoCreatePR = useWatch({ control, name: "autoCreatePR" });
 
-  const isDetailsStepValid = !errors.name && !errors.goal && !!name?.trim() && !!goal?.trim();
+  const selectedArchetype = archetypes.find((a) => a.id === archetypeId);
+  const targetProfileOptions = (selectedArchetype?.profiles ?? []).map(
+    (profile) => ({
+      value: String(profile.id),
+      label: profile.name,
+    })
+  );
+
+  const isDetailsStepValid =
+    !errors.name && !errors.archetypeId && !!name?.trim() && archetypeId !== "";
   const isStagesStepValid =
     stagesValues.length > 0 &&
     stagesValues.every((stage) => !!stage.name?.trim() && stage.agentId !== "");
 
-  const onGoalTemplateChange = (templateValue: string) => {
-    setValue("goalTemplate", templateValue);
-    const template = GOAL_TEMPLATES.find((t) => t.value === templateValue);
-    if (template && template.goalText) {
-      setValue("goal", template.goalText, { shouldValidate: true });
-    }
+  const onArchetypeChange = (selection: string) => {
+    const newArchetypeId = selection ? Number(selection) : "";
+    setValue("archetypeId", newArchetypeId, { shouldValidate: true });
+    // Reset target profiles when the archetype changes since they belong to
+    // the previously selected archetype.
+    setValue("targetProfileIds", []);
   };
 
   const onSubmit = async (values: WorkflowWizardFormValues) => {
     const payload: New<MigrationWorkflow> = {
       name: values.name.trim(),
-      goal: values.goal.trim(),
+      goal: values.description.trim(),
+      archetypeId: values.archetypeId === "" ? undefined : values.archetypeId,
+      targetProfileIds: values.targetProfileIds,
       saveLessonsLearned: values.saveLessonsLearned,
       autoCreatePR: values.autoCreatePR,
       isTemplate: false,
@@ -212,7 +228,7 @@ export const MigrationWorkflowWizard: React.FC<MigrationWorkflowWizardProps> = (
         header={
           <WizardHeader
             onClose={onClose}
-            title={workflow ? "Edit migration workflow" : "Create migration workflow"}
+            title={workflow ? "Edit Plan" : "Create Plan"}
             description={
               seedFrom && !workflow ? `Starting from "${seedFrom.name}"` : undefined
             }
@@ -233,49 +249,76 @@ export const MigrationWorkflowWizard: React.FC<MigrationWorkflowWizardProps> = (
                 render={({ field }) => (
                   <TextInput
                     id="workflow-name"
+                    placeholder="For example, Java EE to Quarkus"
                     value={field.value}
                     onChange={(_, value) => field.onChange(value)}
                   />
                 )}
               />
             </FormGroup>
-            <FormGroup
-              label="Goal template"
-              fieldId="workflow-goal-template"
-            >
+            <FormGroup label="Description" fieldId="workflow-description">
               <Controller
                 control={control}
-                name="goalTemplate"
-                render={({ field }) => (
-                  <SimpleSelect
-                    toggleId="workflow-goal-template-toggle"
-                    toggleAriaLabel="Goal template select"
-                    ariaLabel="Goal template"
-                    isFullWidth
-                    value={field.value}
-                    options={goalTemplateOptions}
-                    onSelect={(selection) => {
-                      if (selection) onGoalTemplateChange(selection);
-                    }}
-                  />
-                )}
-              />
-            </FormGroup>
-            <FormGroup
-              label="Migration plan goal"
-              isRequired
-              fieldId="workflow-goal"
-            >
-              <Controller
-                control={control}
-                name="goal"
+                name="description"
                 render={({ field }) => (
                   <TextArea
-                    id="workflow-goal"
+                    id="workflow-description"
                     value={field.value}
                     onChange={(_, value) => field.onChange(value)}
                     autoResize
-                    placeholder="Describe the outcome this workflow should achieve."
+                    placeholder="Describe the goal of this Plan..."
+                  />
+                )}
+              />
+            </FormGroup>
+            <FormGroup label="Archetype" isRequired fieldId="workflow-archetype">
+              <Controller
+                control={control}
+                name="archetypeId"
+                render={({ field }) => (
+                  <SimpleSelect
+                    toggleId="workflow-archetype-toggle"
+                    toggleAriaLabel="Archetype select"
+                    ariaLabel="Archetype"
+                    isFullWidth
+                    placeholderText="Select an archetype"
+                    value={field.value === "" ? undefined : String(field.value)}
+                    options={archetypeOptions}
+                    onSelect={(selection) => onArchetypeChange(selection ?? "")}
+                  />
+                )}
+              />
+            </FormGroup>
+            <FormGroup
+              label="Target profiles"
+              fieldId="workflow-target-profiles"
+            >
+              <Controller
+                control={control}
+                name="targetProfileIds"
+                render={({ field }) => (
+                  <MultiSelect
+                    toggleId="workflow-target-profiles-toggle"
+                    toggleAriaLabel="Target profiles select"
+                    ariaLabel="Target profiles"
+                    isFullWidth
+                    isDisabled={archetypeId === ""}
+                    hasCheckbox
+                    hasChips
+                    placeholderText="Select target profiles"
+                    values={field.value.map(String)}
+                    options={targetProfileOptions}
+                    onSelect={(selection) => {
+                      if (!selection) return;
+                      const id = Number(selection);
+                      const exists = field.value.includes(id);
+                      field.onChange(
+                        exists
+                          ? field.value.filter((v) => v !== id)
+                          : [...field.value, id]
+                      );
+                    }}
+                    onClear={() => field.onChange([])}
                   />
                 )}
               />
@@ -361,8 +404,29 @@ export const MigrationWorkflowWizard: React.FC<MigrationWorkflowWizardProps> = (
               <DescriptionListDescription>{name}</DescriptionListDescription>
             </DescriptionListGroup>
             <DescriptionListGroup>
-              <DescriptionListTerm>Goal</DescriptionListTerm>
-              <DescriptionListDescription>{goal}</DescriptionListDescription>
+              <DescriptionListTerm>Description</DescriptionListTerm>
+              <DescriptionListDescription>
+                {description || <em>None</em>}
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Archetype</DescriptionListTerm>
+              <DescriptionListDescription>
+                {selectedArchetype?.name ?? <em>None selected</em>}
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Target profiles</DescriptionListTerm>
+              <DescriptionListDescription>
+                {targetProfileIds.length > 0 ? (
+                  targetProfileOptions
+                    .filter((opt) => targetProfileIds.includes(Number(opt.value)))
+                    .map((opt) => opt.label)
+                    .join(", ")
+                ) : (
+                  <em>None selected</em>
+                )}
+              </DescriptionListDescription>
             </DescriptionListGroup>
             <DescriptionListGroup>
               <DescriptionListTerm>Save lessons learned</DescriptionListTerm>

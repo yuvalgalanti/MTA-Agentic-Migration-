@@ -1,4 +1,4 @@
-import { AgentRole } from "@app/api/models";
+import { AgentRole, Model } from "@app/api/models";
 
 // Static selection catalogs for the agent configuration form and detail
 // page. These aren't Hub-backed entities (unlike agents themselves) — they
@@ -35,30 +35,15 @@ export const AGENT_IMAGES: AgentImageOption[] = [
   { value: "rocket", label: "Rocket", icon: "🚀" },
 ];
 
-export interface AgentModelOption {
-  value: string;
-  label: string;
-  provider: string;
-}
-
-export const AGENT_MODELS: AgentModelOption[] = [
-  { value: "gpt-4o", label: "GPT-4o", provider: "OpenAI" },
-  { value: "gpt-4.1", label: "GPT-4.1", provider: "OpenAI" },
-  { value: "o3-mini", label: "o3-mini", provider: "OpenAI" },
-  {
-    value: "claude-3.7-sonnet",
-    label: "Claude 3.7 Sonnet",
-    provider: "Anthropic",
-  },
-  { value: "claude-3.5-haiku", label: "Claude 3.5 Haiku", provider: "Anthropic" },
-  { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro", provider: "Google" },
-  { value: "llama-3.1-70b", label: "Llama 3.1 70B", provider: "Meta (self-hosted)" },
-  {
-    value: "mixtral-8x7b",
-    label: "Mixtral 8x7B",
-    provider: "Mistral (self-hosted)",
-  },
-];
+/**
+ * Formats an Agent's `model` (a `Model.modelId`) into a human-readable label
+ * by looking it up in the Models registry. Falls back to the raw modelId if
+ * no matching Model is found (e.g. the Model was since deleted).
+ */
+export const modelLabel = (models: Model[], modelId: string): string => {
+  const model = models.find((m) => m.modelId === modelId);
+  return model ? `${model.name} (${model.provider})` : modelId;
+};
 
 export const AGENT_SKILLS: string[] = [
   "Static code analysis",
