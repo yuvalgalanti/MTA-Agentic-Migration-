@@ -48,12 +48,12 @@ const WorkflowRunsPage: React.FC = () => {
     <>
       <PageSection hasBodyWrapper={false}>
         <Content>
-          <Content component="h1">Workflow Runs</Content>
+          <Content component="h1">Plan Runs</Content>
         </Content>
         <Content>
           <Content component="p">
-            View all migration workflow runs across your workflows, or start
-            a new run by selecting a workflow and the applications to migrate.
+            View all migration plan runs across your plans, or start
+            a new run by selecting a plan and the applications to migrate.
           </Content>
         </Content>
       </PageSection>
@@ -73,12 +73,12 @@ const WorkflowRunsPage: React.FC = () => {
             <EmptyState
               headingLevel="h2"
               icon={CubesIcon}
-              titleText="No workflow runs yet"
+              titleText="No plan runs yet"
               variant="sm"
             >
               <EmptyStateBody>
                 Start a new run to see agents progress through migration
-                workflow stages.
+                plan stages.
               </EmptyStateBody>
             </EmptyState>
           ) : (

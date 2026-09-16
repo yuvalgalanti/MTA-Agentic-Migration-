@@ -36,6 +36,7 @@ import {
 import { CubesIcon } from "@patternfly/react-icons";
 import {
   ActionsColumn,
+  IAction,
   Table,
   Tbody,
   Td,
@@ -48,6 +49,7 @@ import {
   New,
   Skill,
   SkillAssociation,
+  SkillCollection,
   SkillSource,
   SkillSourceType,
 } from "@app/api/models";
@@ -63,10 +65,16 @@ import {
   TableHeaderContentWithControls,
   TableRowContentWithControls,
 } from "@app/components/TableControls";
+import { ToolbarBulkSelector } from "@app/components/ToolbarBulkSelector";
+import { useBulkSelection } from "@app/hooks/selection/useBulkSelection";
 import { useLocalTableControls } from "@app/hooks/table-controls";
 import { useFetchAgents } from "@app/queries/agents";
 import { useFetchApplications } from "@app/queries/applications";
 import { useFetchArchetypes } from "@app/queries/archetypes";
+import {
+  useDeleteSkillCollectionMutation,
+  useFetchSkillCollections,
+} from "@app/queries/skill-collections";
 import {
   useCreateSkillMutation,
   useDeleteSkillMutation,
@@ -74,6 +82,9 @@ import {
   useUpdateSkillMutation,
 } from "@app/queries/skills";
 import { getAxiosErrorMessage } from "@app/utils/utils";
+
+import { CollectionViewModal } from "./components/collection-view-modal";
+import { SkillCollectionFormModal } from "./components/skill-collection-form-modal";
 
 const sourceColor = (source: SkillSource) => {
   switch (source) {
@@ -100,19 +111,48 @@ const sourceTypeColor = (sourceType: SkillSourceType) => {
 /** Encodes a SkillAssociation as a string value for the MultiSelect, e.g. "Agent:3". */
 const associationValue = (type: string, id: number) => `${type}:${id}`;
 
+/** A single row in the merged Skills list: either an individual Skill or a Skill collection. */
+type SkillsListItem =
+  | { key: string; kind: "skill"; name: string; skill: Skill }
+  | { key: string; kind: "collection"; name: string; collection: SkillCollection };
+
 const Skills: React.FC = () => {
   const { t } = useTranslation();
   const { pushNotification } = React.useContext(NotificationsContext);
-  const { skills, isFetching, fetchError } = useFetchSkills();
+  const {
+    skills,
+    isFetching: isFetchingSkills,
+    fetchError: skillsFetchError,
+  } = useFetchSkills();
+  const {
+    skillCollections,
+    isFetching: isFetchingCollections,
+    fetchError: collectionsFetchError,
+  } = useFetchSkillCollections();
   const { agents } = useFetchAgents();
   const { archetypes } = useFetchArchetypes();
   const { data: applications } = useFetchApplications();
+
+  const isFetching = isFetchingSkills || isFetchingCollections;
+  const fetchError = skillsFetchError || collectionsFetchError;
 
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [skillToDelete, setSkillToDelete] = React.useState<Skill>();
   const [skillToView, setSkillToView] = React.useState<Skill | null>(null);
   const [viewContent, setViewContent] = React.useState("");
+
+  // Skill collection modal state
+  const [collectionToView, setCollectionToView] =
+    React.useState<SkillCollection | null>(null);
+  const [collectionToDelete, setCollectionToDelete] =
+    React.useState<SkillCollection>();
+  const [collectionFormState, setCollectionFormState] = React.useState<
+    "create" | SkillCollection | undefined
+  >(undefined);
+  const [collectionFormInitialSkillIds, setCollectionFormInitialSkillIds] =
+    React.useState<number[]>([]);
+  const deletedCollectionNameRef = React.useRef<string>("");
 
   // Create Skill modal state
   const [newName, setNewName] = React.useState("");
@@ -146,6 +186,10 @@ const Skills: React.FC = () => {
     setImportContent("");
   };
 
+  const onMutationError = (error: AxiosError) => {
+    pushNotification({ title: getAxiosErrorMessage(error), variant: "danger" });
+  };
+
   const onCreateSuccess = (skill: Skill) => {
     pushNotification({
       title: `Skill "${skill.name}" created`,
@@ -154,23 +198,17 @@ const Skills: React.FC = () => {
     setIsCreateOpen(false);
     resetForm();
   };
-  const onCreateError = (error: AxiosError) => {
-    pushNotification({ title: getAxiosErrorMessage(error), variant: "danger" });
-  };
   const { mutate: createSkill, isPending: isCreating } = useCreateSkillMutation(
     onCreateSuccess,
-    onCreateError
+    onMutationError
   );
 
   const onDeleteSuccess = () => {
     pushNotification({ title: "Skill deleted", variant: "success" });
   };
-  const onDeleteError = (error: AxiosError) => {
-    pushNotification({ title: getAxiosErrorMessage(error), variant: "danger" });
-  };
   const { mutate: deleteSkill } = useDeleteSkillMutation(
     onDeleteSuccess,
-    onDeleteError
+    onMutationError
   );
 
   const onUpdateSuccess = (skill: Skill) => {
@@ -182,7 +220,20 @@ const Skills: React.FC = () => {
   };
   const { mutate: updateSkill, isPending: isSaving } = useUpdateSkillMutation(
     onUpdateSuccess,
-    onCreateError
+    onMutationError
+  );
+
+  const { mutate: deleteSkillCollection } = useDeleteSkillCollectionMutation(
+    () => {
+      pushNotification({
+        title: t("toastr.success.deletedWhat", {
+          what: deletedCollectionNameRef.current,
+          type: "skill collection",
+        }),
+        variant: "success",
+      });
+    },
+    onMutationError
   );
 
   const openViewModal = (skill: Skill) => {
@@ -193,6 +244,18 @@ const Skills: React.FC = () => {
   const handleSaveContent = () => {
     if (!skillToView) return;
     updateSkill({ ...skillToView, content: viewContent });
+  };
+
+  const usedByAgentsCount = React.useCallback(
+    (collectionName: string) =>
+      agents.filter((agent) => (agent.skillCollections || []).includes(collectionName))
+        .length,
+    [agents]
+  );
+
+  const closeCollectionForm = () => {
+    setCollectionFormState(undefined);
+    setCollectionFormInitialSkillIds([]);
   };
 
   // Options for the "Associated to" multiselect: Agents, Archetypes, Target
@@ -323,21 +386,47 @@ const Skills: React.FC = () => {
     { value: "OCI", label: "OCI" },
   ];
 
+  const kindOptions: { value: "skill" | "collection"; label: string }[] = [
+    { value: "skill", label: "Skills" },
+    { value: "collection", label: "Skill collections" },
+  ];
+
+  // Merge Skills and Skill collections into a single list of rows.
+  const listItems: SkillsListItem[] = React.useMemo(() => {
+    const skillItems: SkillsListItem[] = skills.map((skill) => ({
+      key: `skill-${skill.id}`,
+      kind: "skill",
+      name: skill.name,
+      skill,
+    }));
+    const collectionItems: SkillsListItem[] = skillCollections.map(
+      (collection) => ({
+        key: `collection-${collection.id}`,
+        kind: "collection",
+        name: collection.name,
+        collection,
+      })
+    );
+    return [...skillItems, ...collectionItems];
+  }, [skills, skillCollections]);
+
   const tableControls = useLocalTableControls({
     tableName: "skills-table",
-    idProperty: "id",
+    idProperty: "key",
     dataNameProperty: "name",
-    items: skills,
+    items: listItems,
     columnNames: {
+      kind: "Type",
       name: "Name",
       description: "Description",
       sourceType: "Source type",
       source: "Source",
-      associations: "Associated to",
+      associations: "Associated to / Used by",
     },
     isFilterEnabled: true,
     isSortEnabled: true,
     isPaginationEnabled: true,
+    isSelectionEnabled: true,
     hasActionsColumn: true,
     filterCategories: [
       {
@@ -345,35 +434,43 @@ const Skills: React.FC = () => {
         title: t("terms.name"),
         type: FilterType.search,
         placeholderText: "Filter by name...",
-        getItemValue: (item) => item?.name || "",
+        getItemValue: (item) => item.name,
+      },
+      {
+        categoryKey: "kind",
+        title: "Type",
+        type: FilterType.select,
+        selectOptions: kindOptions,
+        getItemValue: (item) => item.kind,
       },
       {
         categoryKey: "sourceType",
         title: "Source type",
         type: FilterType.multiselect,
-        selectOptions: sourceTypeOptions.map((s) => ({ value: s.value })),
-        getItemValue: (item) => item?.sourceType || "",
+        selectOptions: sourceTypeOptions,
+        getItemValue: (item) => (item.kind === "skill" ? item.skill.sourceType : ""),
       },
       {
         categoryKey: "source",
         title: "Source",
         type: FilterType.multiselect,
-        selectOptions: sourceOptions.map((s) => ({ value: s.value })),
-        getItemValue: (item) => item?.source || "",
+        selectOptions: sourceOptions,
+        getItemValue: (item) => (item.kind === "skill" ? item.skill.source : ""),
       },
     ],
     initialItemsPerPage: 10,
     sortableColumns: ["name", "sourceType", "source"],
     initialSort: { columnKey: "name", direction: "asc" },
     getSortValues: (item) => ({
-      name: item?.name || "",
-      sourceType: item?.sourceType || "",
-      source: item?.source || "",
+      name: item.name,
+      sourceType: item.kind === "skill" ? item.skill.sourceType : "",
+      source: item.kind === "skill" ? item.skill.source : "",
     }),
     isLoading: isFetching,
   });
 
   const {
+    filteredItems,
     currentPageItems,
     numRenderedColumns,
     propHelpers: {
@@ -388,6 +485,72 @@ const Skills: React.FC = () => {
     },
   } = tableControls;
 
+  // Bulk-selection of Skill rows only, used to create a new Skill collection
+  // from a set of selected Skills. Skill collection rows are not selectable.
+  const skillItemsOnPage = currentPageItems
+    .filter((item) => item.kind === "skill")
+    .map((item) => (item as Extract<SkillsListItem, { kind: "skill" }>).skill);
+  const filteredSkillItems = (filteredItems ?? [])
+    .filter((item) => item.kind === "skill")
+    .map((item) => (item as Extract<SkillsListItem, { kind: "skill" }>).skill);
+
+  const {
+    selectedItems: selectedSkills,
+    propHelpers: { toolbarBulkSelectorProps, getSelectCheckboxTdProps },
+  } = useBulkSelection<Skill>({
+    isEqual: (a, b) => a.id === b.id,
+    filteredItems: filteredSkillItems,
+    currentPageItems: skillItemsOnPage,
+  });
+
+  const getSelectCheckboxTdPropsForRow = ({
+    item,
+    rowIndex,
+  }: {
+    item: SkillsListItem;
+    rowIndex: number;
+  }) =>
+    item.kind === "skill"
+      ? getSelectCheckboxTdProps({ item: item.skill, rowIndex })
+      : {};
+
+  const onCreateCollectionFromSelected = () => {
+    setCollectionFormInitialSkillIds(selectedSkills.map((s) => s.id));
+    setCollectionFormState("create");
+  };
+
+  const skillRowActions = (skill: Skill): IAction[] => [
+    {
+      title: skill.sourceType === "Inline" ? "View / Edit" : "View details",
+      onClick: () => openViewModal(skill),
+    },
+    {
+      title: "Delete",
+      onClick: () => setSkillToDelete(skill),
+      isDanger: true,
+      isDisabled: skill.source === "Red Hat",
+    },
+  ];
+
+  const collectionRowActions = (collection: SkillCollection): IAction[] => [
+    {
+      title: "View",
+      onClick: () => setCollectionToView(collection),
+    },
+    {
+      title: "Edit",
+      onClick: () => {
+        setCollectionFormState(collection);
+        setCollectionFormInitialSkillIds([]);
+      },
+    },
+    {
+      title: "Delete",
+      onClick: () => setCollectionToDelete(collection),
+      isDanger: true,
+    },
+  ];
+
   return (
     <>
       <PageSection hasBodyWrapper={false}>
@@ -397,18 +560,20 @@ const Skills: React.FC = () => {
         <Content>
           <Content component="p">
             Codify migration knowledge for Agents to consume at execution time
-            using inline guidance, a git repository, or an OCI image.
+            using inline guidance, a git repository, or an OCI image, and
+            bundle related Skills together into reusable collections.
           </Content>
         </Content>
       </PageSection>
 
       <PageSection hasBodyWrapper={false}>
         <ConditionalRender
-          when={isFetching && !(skills || fetchError)}
+          when={isFetching && listItems.length === 0 && !fetchError}
           then={<AppPlaceholder />}
         >
           <Toolbar {...toolbarProps}>
             <ToolbarContent>
+              <ToolbarBulkSelector {...toolbarBulkSelectorProps} />
               <FilterToolbar {...filterToolbarProps} />
               <ToolbarGroup variant="action-group">
                 <ToolbarItem>
@@ -417,6 +582,17 @@ const Skills: React.FC = () => {
                     onClick={() => setIsCreateOpen(true)}
                   >
                     Create skill
+                  </Button>
+                </ToolbarItem>
+                <ToolbarItem>
+                  <Button
+                    variant={ButtonVariant.secondary}
+                    isDisabled={selectedSkills.length === 0}
+                    onClick={onCreateCollectionFromSelected}
+                  >
+                    {selectedSkills.length > 0
+                      ? `Create collection (${selectedSkills.length})`
+                      : "Create collection"}
                   </Button>
                 </ToolbarItem>
                 <ToolbarItem>
@@ -441,11 +617,12 @@ const Skills: React.FC = () => {
             <Thead>
               <Tr>
                 <TableHeaderContentWithControls {...tableControls}>
-                  <Th {...getThProps({ columnKey: "name" })} />
-                  <Th {...getThProps({ columnKey: "description" })} />
-                  <Th {...getThProps({ columnKey: "sourceType" })} />
-                  <Th {...getThProps({ columnKey: "source" })} />
-                  <Th {...getThProps({ columnKey: "associations" })} />
+                  <Th {...getThProps({ columnKey: "kind" })} width={10} />
+                  <Th {...getThProps({ columnKey: "name" })} width={20} />
+                  <Th {...getThProps({ columnKey: "description" })} width={20} />
+                  <Th {...getThProps({ columnKey: "sourceType" })} width={10} />
+                  <Th {...getThProps({ columnKey: "source" })} width={10} />
+                  <Th {...getThProps({ columnKey: "associations" })} width={20} />
                   <Th screenReaderText="Row actions" />
                 </TableHeaderContentWithControls>
               </Tr>
@@ -458,83 +635,121 @@ const Skills: React.FC = () => {
                 <EmptyState
                   headingLevel="h2"
                   icon={CubesIcon}
-                  titleText="No skills available"
+                  titleText="No skills yet"
                   variant="sm"
                 >
                   <EmptyStateBody>
-                    Create a skill or import a skill file to get started.
+                    Create a skill, import a skill file, or bundle skills into
+                    a collection to get started.
                   </EmptyStateBody>
                 </EmptyState>
               }
               numRenderedColumns={numRenderedColumns}
             >
-              {currentPageItems?.map((skill, rowIndex) => (
-                <Tbody key={skill.id}>
-                  <Tr {...getTrProps({ item: skill })}>
+              {currentPageItems?.map((item, rowIndex) => (
+                <Tbody key={item.key}>
+                  <Tr {...getTrProps({ item })}>
                     <TableRowContentWithControls
                       {...tableControls}
-                      item={skill}
+                      getSelectCheckboxTdProps={getSelectCheckboxTdPropsForRow}
+                      item={item}
                       rowIndex={rowIndex}
                     >
-                      <Td width={15} {...getTdProps({ columnKey: "name" })}>
-                        <Button
-                          variant="link"
-                          isInline
-                          onClick={() => openViewModal(skill)}
-                        >
-                          {skill.name}
-                        </Button>
+                      <Td width={10} {...getTdProps({ columnKey: "kind" })}>
+                        {item.kind === "collection" ? (
+                          <Label isCompact color="teal">
+                            Collection
+                          </Label>
+                        ) : (
+                          <Label isCompact variant="outline">
+                            Skill
+                          </Label>
+                        )}
                       </Td>
-                      <Td width={25} {...getTdProps({ columnKey: "description" })}>
-                        {skill.description || "—"}
+                      <Td width={20} {...getTdProps({ columnKey: "name" })}>
+                        {item.kind === "skill" ? (
+                          <Button
+                            variant="link"
+                            isInline
+                            onClick={() => openViewModal(item.skill)}
+                          >
+                            {item.skill.name}
+                          </Button>
+                        ) : (
+                          <>
+                            <Button
+                              variant="link"
+                              isInline
+                              onClick={() => setCollectionToView(item.collection)}
+                            >
+                              {item.collection.name}
+                            </Button>{" "}
+                            <Label isCompact color="grey">
+                              {item.collection.skillIds.length} skill
+                              {item.collection.skillIds.length === 1 ? "" : "s"}
+                            </Label>
+                          </>
+                        )}
+                      </Td>
+                      <Td width={20} {...getTdProps({ columnKey: "description" })}>
+                        {(item.kind === "skill"
+                          ? item.skill.description
+                          : item.collection.description) || "—"}
                       </Td>
                       <Td width={10} {...getTdProps({ columnKey: "sourceType" })}>
-                        <Label
-                          color={sourceTypeColor(skill.sourceType)}
-                          isCompact
-                        >
-                          {skill.sourceType}
-                        </Label>
-                      </Td>
-                      <Td width={10} {...getTdProps({ columnKey: "source" })}>
-                        <Label color={sourceColor(skill.source)} isCompact>
-                          {skill.source}
-                        </Label>
-                      </Td>
-                      <Td width={20} {...getTdProps({ columnKey: "associations" })}>
-                        {skill.associations?.length ? (
-                          <LabelGroup numLabels={2}>
-                            {skill.associations.map((assoc) => (
-                              <Label
-                                key={`${assoc.type}-${assoc.id}`}
-                                isCompact
-                                variant="outline"
-                              >
-                                {assoc.name}
-                              </Label>
-                            ))}
-                          </LabelGroup>
+                        {item.kind === "skill" ? (
+                          <Label
+                            color={sourceTypeColor(item.skill.sourceType)}
+                            isCompact
+                          >
+                            {item.skill.sourceType}
+                          </Label>
                         ) : (
                           "—"
                         )}
                       </Td>
+                      <Td width={10} {...getTdProps({ columnKey: "source" })}>
+                        {item.kind === "skill" ? (
+                          <Label color={sourceColor(item.skill.source)} isCompact>
+                            {item.skill.source}
+                          </Label>
+                        ) : (
+                          "—"
+                        )}
+                      </Td>
+                      <Td width={20} {...getTdProps({ columnKey: "associations" })}>
+                        {item.kind === "skill" ? (
+                          item.skill.associations?.length ? (
+                            <LabelGroup numLabels={2}>
+                              {item.skill.associations.map((assoc) => (
+                                <Label
+                                  key={`${assoc.type}-${assoc.id}`}
+                                  isCompact
+                                  variant="outline"
+                                >
+                                  {assoc.name}
+                                </Label>
+                              ))}
+                            </LabelGroup>
+                          ) : (
+                            "—"
+                          )
+                        ) : (
+                          <>
+                            {usedByAgentsCount(item.collection.name)} agent
+                            {usedByAgentsCount(item.collection.name) === 1
+                              ? ""
+                              : "s"}
+                          </>
+                        )}
+                      </Td>
                       <Td isActionCell>
                         <ActionsColumn
-                          items={[
-                            {
-                              title:
-                                skill.sourceType === "Inline"
-                                  ? "View / Edit"
-                                  : "View details",
-                              onClick: () => openViewModal(skill),
-                            },
-                            {
-                              title: "Delete",
-                              onClick: () => setSkillToDelete(skill),
-                              isDanger: true,
-                              isDisabled: skill.source === "Red Hat",
-                            },
-                          ]}
+                          items={
+                            item.kind === "skill"
+                              ? skillRowActions(item.skill)
+                              : collectionRowActions(item.collection)
+                          }
                         />
                       </Td>
                     </TableRowContentWithControls>
@@ -888,6 +1103,64 @@ const Skills: React.FC = () => {
           onConfirm={() => {
             deleteSkill(skillToDelete.id);
             setSkillToDelete(undefined);
+          }}
+        />
+      )}
+
+      {/* View skill collection modal */}
+      <CollectionViewModal
+        collection={collectionToView}
+        skills={skills}
+        agents={agents}
+        onClose={() => setCollectionToView(null)}
+        onViewSkill={(skill) => {
+          setCollectionToView(null);
+          openViewModal(skill);
+        }}
+        onEdit={(collection) => {
+          setCollectionToView(null);
+          setCollectionFormState(collection);
+          setCollectionFormInitialSkillIds([]);
+        }}
+        onDelete={(collection) => {
+          setCollectionToView(null);
+          setCollectionToDelete(collection);
+        }}
+      />
+
+      {/* Create / Edit skill collection modal */}
+      <SkillCollectionFormModal
+        isOpen={collectionFormState !== undefined}
+        skillCollection={
+          collectionFormState === "create" ? undefined : collectionFormState
+        }
+        skillCollections={skillCollections}
+        initialSkillIds={
+          collectionFormState === "create"
+            ? collectionFormInitialSkillIds
+            : undefined
+        }
+        onClose={closeCollectionForm}
+      />
+
+      {collectionToDelete && (
+        <ConfirmDialog
+          title={t("dialog.title.deleteWithName", {
+            what: "skill collection",
+            name: collectionToDelete.name,
+          })}
+          titleIconVariant="warning"
+          message={t("dialog.message.delete")}
+          isOpen={true}
+          confirmBtnVariant={ButtonVariant.danger}
+          confirmBtnLabel={t("actions.delete")}
+          cancelBtnLabel={t("actions.cancel")}
+          onCancel={() => setCollectionToDelete(undefined)}
+          onClose={() => setCollectionToDelete(undefined)}
+          onConfirm={() => {
+            deletedCollectionNameRef.current = collectionToDelete.name;
+            deleteSkillCollection(collectionToDelete.id);
+            setCollectionToDelete(undefined);
           }}
         />
       )}

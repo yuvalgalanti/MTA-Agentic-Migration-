@@ -30,12 +30,15 @@ interface FormValues {
 export interface SkillCollectionFormProps {
   skillCollection: SkillCollection | null;
   skillCollections: SkillCollection[];
+  /** Pre-select these Skill ids when creating a new collection, e.g. from a bulk "Create collection" action. Ignored when editing. */
+  initialSkillIds?: number[];
   onClose: () => void;
 }
 
 export const SkillCollectionForm: React.FC<SkillCollectionFormProps> = ({
   skillCollection,
   skillCollections,
+  initialSkillIds,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -98,7 +101,7 @@ export const SkillCollectionForm: React.FC<SkillCollectionFormProps> = ({
     defaultValues: {
       name: skillCollection?.name || "",
       description: skillCollection?.description || "",
-      skillIds: (skillCollection?.skillIds || []).map(String),
+      skillIds: (skillCollection?.skillIds || initialSkillIds || []).map(String),
     },
     resolver: yupResolver(validationSchema),
     mode: "all",

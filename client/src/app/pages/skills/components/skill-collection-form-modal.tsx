@@ -9,12 +9,14 @@ export interface SkillCollectionFormModalProps {
   isOpen: boolean;
   skillCollection?: SkillCollection;
   skillCollections: SkillCollection[];
+  /** Pre-select these Skill ids when creating a new collection, e.g. from a bulk "Create collection" action. Ignored when editing. */
+  initialSkillIds?: number[];
   onClose: () => void;
 }
 
 export const SkillCollectionFormModal: React.FC<
   SkillCollectionFormModalProps
-> = ({ isOpen, skillCollection, skillCollections, onClose }) => {
+> = ({ isOpen, skillCollection, skillCollections, initialSkillIds, onClose }) => {
   if (!isOpen) {
     return null;
   }
@@ -29,6 +31,7 @@ export const SkillCollectionFormModal: React.FC<
           key={skillCollection?.id ?? 0}
           skillCollection={skillCollection ?? null}
           skillCollections={skillCollections}
+          initialSkillIds={initialSkillIds}
           onClose={onClose}
         />
       </ModalBody>

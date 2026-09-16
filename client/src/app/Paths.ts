@@ -64,7 +64,6 @@ export const DevPaths = {
   agenticWorkflowDetails: "/agentic-migration/workflows/:workflowId",
   agenticWorkflowRuns: "/agentic-migration/workflow-runs",
   agenticSkills: "/agentic-migration/skills",
-  agenticSkillCollections: "/agentic-migration/skill-collections",
 } as const;
 
 export type DevPathValues = (typeof DevPaths)[keyof typeof DevPaths];

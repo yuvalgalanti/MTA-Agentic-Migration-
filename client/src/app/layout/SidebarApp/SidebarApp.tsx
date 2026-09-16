@@ -251,20 +251,12 @@ const MigrationSidebar = ({
           </NavItem>
           <NavItem>
             <NavLink to={DevPaths.agenticWorkflowRuns} activeClassName="pf-m-current">
-              Workflow Runs
+              Plan Runs
             </NavLink>
           </NavItem>
           <NavItem>
             <NavLink to={DevPaths.agenticSkills} activeClassName="pf-m-current">
               Skills
-            </NavLink>
-          </NavItem>
-          <NavItem>
-            <NavLink
-              to={DevPaths.agenticSkillCollections}
-              activeClassName="pf-m-current"
-            >
-              Skill collections
             </NavLink>
           </NavItem>
         </NavExpandable>

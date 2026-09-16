@@ -114,7 +114,6 @@ const WorkflowRunsPage = lazy(
   () => import("./pages/migration-workflows/workflow-runs-page")
 );
 const Skills = lazy(() => import("./pages/skills"));
-const SkillCollections = lazy(() => import("./pages/skill-collections"));
 
 export interface IRoute<T> {
   path: T;
@@ -327,11 +326,6 @@ export const migrationRoutes: IRoute<DevPathValues>[] = [
   {
     path: Paths.agenticSkills,
     comp: Skills,
-    exact: false,
-  },
-  {
-    path: Paths.agenticSkillCollections,
-    comp: SkillCollections,
     exact: false,
   },
 ];
