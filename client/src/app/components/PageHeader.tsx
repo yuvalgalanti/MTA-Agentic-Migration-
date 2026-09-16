@@ -11,7 +11,7 @@ import { BreadCrumbPath } from "./BreadCrumbPath";
 import { HorizontalNav } from "./HorizontalNav";
 
 export interface PageHeaderProps {
-  title: string;
+  title: React.ReactNode;
   description?: React.ReactNode;
   breadcrumbs: { title: string; path?: string | (() => void) }[];
   btnActions?: React.ReactNode;

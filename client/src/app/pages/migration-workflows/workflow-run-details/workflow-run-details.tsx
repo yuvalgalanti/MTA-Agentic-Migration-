@@ -121,7 +121,17 @@ const WorkflowRunDetails: React.FC = () => {
         <>
           <PageSection hasBodyWrapper={false}>
             <PageHeader
-              title={run.name}
+              title={
+                <Flex
+                  alignItems={{ default: "alignItemsCenter" }}
+                  gap={{ default: "gapMd" }}
+                >
+                  <FlexItem>{run.name}</FlexItem>
+                  <FlexItem>
+                    <RunStatusLabel status={run.status} isCompact={false} />
+                  </FlexItem>
+                </Flex>
+              }
               breadcrumbs={[
                 { title: "Workflows", path: Paths.agenticWorkflows },
                 {
@@ -132,7 +142,16 @@ const WorkflowRunDetails: React.FC = () => {
                 },
                 { title: run.name },
               ]}
-              btnActions={<RunStatusLabel status={run.status} isCompact={false} />}
+              btnActions={
+                (run.status === "Succeeded" || run.status === "Failed") && (
+                  <Button
+                    variant={ButtonVariant.secondary}
+                    onClick={() => setIsLessonsLearnedOpen(true)}
+                  >
+                    Save lessons learned
+                  </Button>
+                )
+              }
             />
           </PageSection>
 
@@ -266,17 +285,6 @@ const WorkflowRunDetails: React.FC = () => {
                       Approve and continue
                     </Button>
                   </Alert>
-                </FlexItem>
-              )}
-
-              {(run.status === "Succeeded" || run.status === "Failed") && (
-                <FlexItem>
-                  <Button
-                    variant={ButtonVariant.secondary}
-                    onClick={() => setIsLessonsLearnedOpen(true)}
-                  >
-                    Save lessons learned
-                  </Button>
                 </FlexItem>
               )}
 

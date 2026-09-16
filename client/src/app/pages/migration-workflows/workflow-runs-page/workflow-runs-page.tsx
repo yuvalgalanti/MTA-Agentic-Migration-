@@ -86,7 +86,7 @@ const WorkflowRunsPage: React.FC = () => {
               <Thead>
                 <Tr>
                   <Th width={15}>Name</Th>
-                  <Th width={20}>Workflow</Th>
+                  <Th width={20}>Migration Plan</Th>
                   <Th width={15}>Status</Th>
                   <Th width={20}>Applications</Th>
                   <Th width={15}>Target branch</Th>
@@ -118,7 +118,7 @@ const WorkflowRunsPage: React.FC = () => {
                           {run.name}
                         </Button>
                       </Td>
-                      <Td dataLabel="Workflow">
+                      <Td dataLabel="Migration Plan">
                         <Button
                           variant="link"
                           isInline

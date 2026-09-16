@@ -86,17 +86,6 @@ import { getAxiosErrorMessage } from "@app/utils/utils";
 import { CollectionViewModal } from "./components/collection-view-modal";
 import { SkillCollectionFormModal } from "./components/skill-collection-form-modal";
 
-const sourceColor = (source: SkillSource) => {
-  switch (source) {
-    case "Red Hat":
-      return "red" as const;
-    case "Organization":
-      return "blue" as const;
-    case "Custom":
-      return "grey" as const;
-  }
-};
-
 const sourceTypeColor = (sourceType: SkillSourceType) => {
   switch (sourceType) {
     case "Inline":
@@ -416,11 +405,11 @@ const Skills: React.FC = () => {
     dataNameProperty: "name",
     items: listItems,
     columnNames: {
-      kind: "Type",
       name: "Name",
+      kind: "Type",
       description: "Description",
       sourceType: "Source type",
-      source: "Source",
+      source: "Owner",
       associations: "Associated to / Used by",
     },
     isFilterEnabled: true,
@@ -452,17 +441,18 @@ const Skills: React.FC = () => {
       },
       {
         categoryKey: "source",
-        title: "Source",
+        title: "Owner",
         type: FilterType.multiselect,
         selectOptions: sourceOptions,
         getItemValue: (item) => (item.kind === "skill" ? item.skill.source : ""),
       },
     ],
     initialItemsPerPage: 10,
-    sortableColumns: ["name", "sourceType", "source"],
+    sortableColumns: ["name", "kind", "sourceType", "source"],
     initialSort: { columnKey: "name", direction: "asc" },
     getSortValues: (item) => ({
       name: item.name,
+      kind: item.kind,
       sourceType: item.kind === "skill" ? item.skill.sourceType : "",
       source: item.kind === "skill" ? item.skill.source : "",
     }),
@@ -617,8 +607,8 @@ const Skills: React.FC = () => {
             <Thead>
               <Tr>
                 <TableHeaderContentWithControls {...tableControls}>
-                  <Th {...getThProps({ columnKey: "kind" })} width={10} />
                   <Th {...getThProps({ columnKey: "name" })} width={20} />
+                  <Th {...getThProps({ columnKey: "kind" })} width={10} />
                   <Th {...getThProps({ columnKey: "description" })} width={20} />
                   <Th {...getThProps({ columnKey: "sourceType" })} width={10} />
                   <Th {...getThProps({ columnKey: "source" })} width={10} />
@@ -655,17 +645,6 @@ const Skills: React.FC = () => {
                       item={item}
                       rowIndex={rowIndex}
                     >
-                      <Td width={10} {...getTdProps({ columnKey: "kind" })}>
-                        {item.kind === "collection" ? (
-                          <Label isCompact color="teal">
-                            Collection
-                          </Label>
-                        ) : (
-                          <Label isCompact variant="outline">
-                            Skill
-                          </Label>
-                        )}
-                      </Td>
                       <Td width={20} {...getTdProps({ columnKey: "name" })}>
                         {item.kind === "skill" ? (
                           <Button
@@ -691,6 +670,17 @@ const Skills: React.FC = () => {
                           </>
                         )}
                       </Td>
+                      <Td width={10} {...getTdProps({ columnKey: "kind" })}>
+                        {item.kind === "collection" ? (
+                          <Label isCompact color="teal">
+                            Collection
+                          </Label>
+                        ) : (
+                          <Label isCompact variant="outline">
+                            Skill
+                          </Label>
+                        )}
+                      </Td>
                       <Td width={20} {...getTdProps({ columnKey: "description" })}>
                         {(item.kind === "skill"
                           ? item.skill.description
@@ -709,13 +699,7 @@ const Skills: React.FC = () => {
                         )}
                       </Td>
                       <Td width={10} {...getTdProps({ columnKey: "source" })}>
-                        {item.kind === "skill" ? (
-                          <Label color={sourceColor(item.skill.source)} isCompact>
-                            {item.skill.source}
-                          </Label>
-                        ) : (
-                          "—"
-                        )}
+                        {item.kind === "skill" ? item.skill.source : "—"}
                       </Td>
                       <Td width={20} {...getTdProps({ columnKey: "associations" })}>
                         {item.kind === "skill" ? (
@@ -1114,7 +1098,8 @@ const Skills: React.FC = () => {
         agents={agents}
         onClose={() => setCollectionToView(null)}
         onViewSkill={(skill) => {
-          setCollectionToView(null);
+          // Keep the collection modal open behind the skill modal so
+          // closing the skill modal returns the user to the collection.
           openViewModal(skill);
         }}
         onEdit={(collection) => {
