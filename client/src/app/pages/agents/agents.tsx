@@ -8,9 +8,11 @@ import {
   Content,
   EmptyState,
   EmptyStateBody,
-  Label,
+  List,
+  ListItem,
   Modal,
   ModalBody,
+  ModalFooter,
   ModalHeader,
   PageSection,
   Toolbar,
@@ -34,6 +36,7 @@ import { Agent } from "@app/api/models";
 import { AppPlaceholder } from "@app/components/AppPlaceholder";
 import { ConditionalRender } from "@app/components/ConditionalRender";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
+import { EmptyTextMessage } from "@app/components/EmptyTextMessage";
 import { FilterToolbar, FilterType } from "@app/components/FilterToolbar";
 import { NotificationsContext } from "@app/components/NotificationsContext";
 import { SimplePagination } from "@app/components/SimplePagination";
@@ -47,7 +50,7 @@ import { useDeleteAgentMutation, useFetchAgents } from "@app/queries/agents";
 import { useFetchModels } from "@app/queries/models";
 import { formatPath, getAxiosErrorMessage } from "@app/utils/utils";
 
-import { AGENT_ROLES, modelLabel } from "./agent-catalog";
+import { modelLabel } from "./agent-catalog";
 import { AgentForm } from "./components/agent-form";
 
 export const Agents: React.FC = () => {
@@ -66,6 +69,9 @@ export const Agents: React.FC = () => {
     createUpdateModalState !== "create" ? createUpdateModalState : null;
 
   const [agentToDelete, setAgentToDelete] = React.useState<Agent>();
+  const [skillsModalAgent, setSkillsModalAgent] = React.useState<Agent | null>(
+    null
+  );
 
   const onDeleteSuccess = () => {
     pushNotification({ title: "Agent deleted", variant: "success" });
@@ -85,9 +91,9 @@ export const Agents: React.FC = () => {
     items: agents,
     columnNames: {
       name: "Name",
-      role: "Role",
+      description: "Description",
       model: "Model",
-      status: "Status",
+      skills: "Skills",
     },
     isFilterEnabled: true,
     isSortEnabled: true,
@@ -101,22 +107,13 @@ export const Agents: React.FC = () => {
         placeholderText: "Filter by name...",
         getItemValue: (item) => item?.name || "",
       },
-      {
-        categoryKey: "role",
-        title: "Role",
-        type: FilterType.multiselect,
-        selectOptions: AGENT_ROLES.map((role) => ({ value: role })),
-        getItemValue: (item) => item?.role || "",
-      },
     ],
     initialItemsPerPage: 10,
-    sortableColumns: ["name", "role", "model", "status"],
+    sortableColumns: ["name", "description"],
     initialSort: { columnKey: "name", direction: "asc" },
     getSortValues: (item) => ({
       name: item?.name || "",
-      role: item?.role || "",
-      model: item?.model || "",
-      status: item?.status || "",
+      description: item?.description || "",
     }),
     isLoading: isFetching,
   });
@@ -192,9 +189,9 @@ export const Agents: React.FC = () => {
               <Tr>
                 <TableHeaderContentWithControls {...tableControls}>
                   <Th {...getThProps({ columnKey: "name" })} />
-                  <Th {...getThProps({ columnKey: "role" })} />
+                  <Th {...getThProps({ columnKey: "description" })} />
                   <Th {...getThProps({ columnKey: "model" })} />
-                  <Th {...getThProps({ columnKey: "status" })} />
+                  <Th {...getThProps({ columnKey: "skills" })} />
                   <Th screenReaderText={t("actions.rowActions")} />
                 </TableHeaderContentWithControls>
               </Tr>
@@ -221,7 +218,7 @@ export const Agents: React.FC = () => {
                       item={agent}
                       rowIndex={rowIndex}
                     >
-                      <Td width={30} {...getTdProps({ columnKey: "name" })}>
+                      <Td width={25} {...getTdProps({ columnKey: "name" })}>
                         <Link
                           to={formatPath(Paths.agenticAgentDetails, {
                             agentId: agent.id,
@@ -230,16 +227,24 @@ export const Agents: React.FC = () => {
                           {agent.name}
                         </Link>
                       </Td>
-                      <Td width={25} {...getTdProps({ columnKey: "role" })}>
-                        {agent.role}
+                      <Td width={35} {...getTdProps({ columnKey: "description" })}>
+                        {agent.description || "—"}
                       </Td>
-                      <Td width={25} {...getTdProps({ columnKey: "model" })}>
+                      <Td width={20} {...getTdProps({ columnKey: "model" })}>
                         {modelLabel(models, agent.model)}
                       </Td>
-                      <Td width={10} {...getTdProps({ columnKey: "status" })}>
-                        <Label color={agent.status === "Active" ? "green" : "grey"}>
-                          {agent.status}
-                        </Label>
+                      <Td width={10} {...getTdProps({ columnKey: "skills" })}>
+                        {agent.skills.length > 0 ? (
+                          <Button
+                            variant="link"
+                            isInline
+                            onClick={() => setSkillsModalAgent(agent)}
+                          >
+                            {agent.skills.length}
+                          </Button>
+                        ) : (
+                          agent.skills.length
+                        )}
                       </Td>
                       <Td isActionCell style={{ textAlign: "right" }}>
                         <ActionsColumn
@@ -291,6 +296,40 @@ export const Agents: React.FC = () => {
         <ModalBody>
           <AgentForm agent={agentToUpdate} onClose={closeCreateUpdateModal} />
         </ModalBody>
+      </Modal>
+
+      <Modal
+        id="agent-skills-modal"
+        variant="small"
+        isOpen={!!skillsModalAgent}
+        onClose={() => setSkillsModalAgent(null)}
+        aria-label="Agent skills"
+      >
+        <ModalHeader
+          title={
+            skillsModalAgent ? `${skillsModalAgent.name} — Skills` : "Skills"
+          }
+          description="Skills directly assigned to this Agent."
+        />
+        <ModalBody>
+          {skillsModalAgent && skillsModalAgent.skills.length > 0 ? (
+            <List>
+              {skillsModalAgent.skills.map((skill) => (
+                <ListItem key={skill}>{skill}</ListItem>
+              ))}
+            </List>
+          ) : (
+            <EmptyTextMessage message="No skills assigned" />
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            variant={ButtonVariant.link}
+            onClick={() => setSkillsModalAgent(null)}
+          >
+            Close
+          </Button>
+        </ModalFooter>
       </Modal>
 
       {agentToDelete && (
