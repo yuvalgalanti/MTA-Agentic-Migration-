@@ -220,7 +220,7 @@ const AgentDetails: React.FC = () => {
                                 {agent.skills.length > 0 ? (
                                   <LabelGroup>
                                     {agent.skills.map((skill) => (
-                                      <Label key={skill} color="purple">
+                                      <Label key={skill} variant="outline">
                                         {skill}
                                       </Label>
                                     ))}

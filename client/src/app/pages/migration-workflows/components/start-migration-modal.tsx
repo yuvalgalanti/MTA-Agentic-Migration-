@@ -19,7 +19,7 @@ import {
 } from "@patternfly/react-core";
 import { Table, Tbody, Td, Th, Thead, Tr } from "@patternfly/react-table";
 
-import { Application, MigrationWorkflow, Ref } from "@app/api/models";
+import { Application, MigrationWorkflow, Ref, WorkflowRun } from "@app/api/models";
 import { MultiSelect } from "@app/components/FilterToolbar/components/MultiSelect";
 import SimpleSelect from "@app/components/FilterToolbar/components/SimpleSelect";
 import { NotificationsContext } from "@app/components/NotificationsContext";
@@ -39,6 +39,7 @@ export interface StartMigrationModalProps {
    * selected. When provided, the Applications picker is hidden and the modal
    * simply reviews readiness for this fixed set. */
   initialApplicationIds?: number[];
+  onRunStarted?: (run: WorkflowRun) => void;
 }
 
 type PlanMode = "recommended" | "override";
@@ -56,6 +57,7 @@ export const StartMigrationModal: React.FC<StartMigrationModalProps> = ({
   isOpen,
   onClose,
   initialApplicationIds,
+  onRunStarted,
 }) => {
   const { pushNotification } = React.useContext(NotificationsContext);
 
@@ -151,7 +153,7 @@ export const StartMigrationModal: React.FC<StartMigrationModalProps> = ({
     });
 
     try {
-      await Promise.all(
+      const startedRuns = await Promise.all(
         Array.from(appsByWorkflowId.entries()).map(([workflowId, apps]) =>
           startRun({ workflowId, applications: apps, targetBranch })
         )
@@ -163,6 +165,7 @@ export const StartMigrationModal: React.FC<StartMigrationModalProps> = ({
         variant: "success",
       });
       onClose();
+      if (startedRuns[0]) onRunStarted?.(startedRuns[0]);
     } catch {
       // Individual errors are already surfaced via onStartError.
     }

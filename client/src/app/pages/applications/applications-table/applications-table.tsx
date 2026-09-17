@@ -32,7 +32,7 @@ import {
 import { Table, Tbody, Td, Th, Thead, Tr } from "@patternfly/react-table";
 
 import { Paths } from "@app/Paths";
-import { Assessment, Ref, TaskState } from "@app/api/models";
+import { Assessment, Ref, TaskState, WorkflowRun } from "@app/api/models";
 import { getArchetypeById, getTasksByIds } from "@app/api/rest";
 import { useHasSomeScopes } from "@app/auth";
 import { AppPlaceholder } from "@app/components/AppPlaceholder";
@@ -1351,6 +1351,14 @@ export const ApplicationsTable: FC = () => {
         isOpen={isStartMigrationModalOpen}
         onClose={() => setIsStartMigrationModalOpen(false)}
         initialApplicationIds={selectedRows.map((app) => app.id)}
+        onRunStarted={(run: WorkflowRun) =>
+          history.push(
+            formatPath(Paths.agenticWorkflowRunDetails, {
+              workflowId: run.workflowId,
+              runName: run.name,
+            })
+          )
+        }
       />
       <RetrieveConfigWizard
         key={

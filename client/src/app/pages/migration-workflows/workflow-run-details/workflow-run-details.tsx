@@ -133,7 +133,7 @@ const WorkflowRunDetails: React.FC = () => {
                 </Flex>
               }
               breadcrumbs={[
-                { title: "Workflows", path: Paths.agenticWorkflows },
+                { title: "Migration Plans", path: Paths.agenticWorkflows },
                 {
                   title: workflow.name,
                   path: `${formatPath(Paths.agenticWorkflowDetails, {
